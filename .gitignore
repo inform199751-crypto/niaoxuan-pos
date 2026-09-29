@@ -1,0 +1,19 @@
+# ---- 營業資料與密碼:絕對不要上傳 ----
+data.json
+data.json.tmp
+設定.json
+備份/
+
+# ---- 打包產物(要給人下載請用 GitHub Releases) ----
+*.exe
+*.zip
+*.7z
+build/
+dist/
+*.spec
+
+# ---- Python / 系統雜檔 ----
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db

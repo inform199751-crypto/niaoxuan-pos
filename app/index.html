@@ -1,0 +1,3281 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="color-scheme" content="light dark">
+<style>html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style></head><body>
+<title>鳥璇點餐系統</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;900&family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --ground:#F2F0EB; --surface:#FFFFFF; --sunk:#E8E4DC; --ink:#1E1B18; --muted:#6F675E; --line:#DCD7CE;
+  --tare:#7A3E12; --tare-soft:#F1E4D6; --ember:#C8421F; --ember-ink:#FFFFFF; --ok:#2F7A4B; --ok-soft:#E1F0E6;
+  --warn:#B7791F; --bad:#B42318; --bad-soft:#FBE7E4;
+  --shadow:0 10px 30px rgba(40,25,10,.14);
+  --serif:"Noto Serif TC","Songti TC",serif; --sans:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  color-scheme:dark; --ground:#151210; --surface:#201C19; --sunk:#2A2420; --ink:#EFE9E1; --muted:#A39A8F; --line:#3A332D;
+  --tare:#E2A15E; --tare-soft:#3A2A1C; --ember:#E8643A; --ember-ink:#1A0E08; --ok:#6CC58F; --ok-soft:#1C2E22;
+  --warn:#E0B050; --bad:#F07A6A; --bad-soft:#3A1E1A; --shadow:0 10px 30px rgba(0,0,0,.5);
+}}
+:root[data-theme="dark"]{
+  color-scheme:dark; --ground:#151210; --surface:#201C19; --sunk:#2A2420; --ink:#EFE9E1; --muted:#A39A8F; --line:#3A332D;
+  --tare:#E2A15E; --tare-soft:#3A2A1C; --ember:#E8643A; --ember-ink:#1A0E08; --ok:#6CC58F; --ok-soft:#1C2E22;
+  --warn:#E0B050; --bad:#F07A6A; --bad-soft:#3A1E1A; --shadow:0 10px 30px rgba(0,0,0,.5);
+}
+*{box-sizing:border-box}
+body{background:var(--ground);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5}
+button,select,textarea,input{font:inherit;color:inherit}
+button{cursor:pointer}
+button:focus-visible,select:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px solid var(--ember);outline-offset:2px}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+h1,h2,h3{text-wrap:balance}
+
+/* ---- 頂列 ---- */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--ink);color:var(--ground)}
+.top-in{max-width:1240px;margin:0 auto;padding-inline:16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding-block:8px}
+.logo{font-family:var(--serif);font-weight:900;font-size:22px;letter-spacing:.12em}
+.tabs{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0}
+.tabs button{flex:none;border:0;background:none;color:inherit;opacity:.65;padding:8px 12px;border-radius:6px;font-weight:500;position:relative}
+.tabs button[aria-selected="true"]{opacity:1;background:rgba(255,255,255,.12)}
+.tabs .pip{display:inline-block;min-width:20px;margin-left:4px;padding:0 6px;border-radius:999px;background:var(--ember);color:var(--ember-ink);font-family:var(--mono);font-size:12px;text-align:center}
+.conn{font-size:12px;padding:3px 8px;border-radius:999px;border:1px solid currentColor;opacity:.85;white-space:nowrap}
+.conn.shared{color:#8FD6A8}.conn.local{color:#F2C46B}
+
+.wrap{max-width:1240px;margin:0 auto;padding-inline:16px;padding-block:16px 120px}
+.banner{background:var(--tare-soft);border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:14px}
+.muted{color:var(--muted)}
+.empty{color:var(--muted);text-align:center;padding:40px 0;font-size:14px}
+
+/* ---- 桌位 chips ---- */
+.tablebar{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin-bottom:16px}
+.tchip{min-height:64px;padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:var(--surface);text-align:left;display:flex;flex-direction:column;justify-content:center;gap:2px;line-height:1.25}
+.tchip b{font-size:22px;font-family:var(--serif)}
+.tchip small{font-size:13px;color:var(--muted)}
+@media (max-width:480px){.tablebar{grid-template-columns:repeat(3,1fr)}}
+.tchip.dining{border-color:var(--tare);background:var(--tare-soft)}
+.tchip[aria-pressed="true"]{outline:2px solid var(--ember);outline-offset:1px}
+
+/* ---- 點餐版面 ---- */
+.order{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:24px;align-items:start}
+.opencard{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px;display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-bottom:14px}
+.opencard h3{margin:0;font-family:var(--serif);font-size:18px;flex-basis:100%}
+nav.cats{position:sticky;top:calc(env(safe-area-inset-top,0px) + 54px);z-index:5;background:var(--ground);display:flex;gap:6px;overflow-x:auto;padding-block:8px;scrollbar-width:none}
+nav.cats a{flex:none;text-decoration:none;color:var(--muted);font-size:14px;padding:5px 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface)}
+section.cat{padding-top:10px;scroll-margin-top:110px}
+section.cat h2{font-family:var(--serif);font-weight:600;font-size:19px;margin:0;display:flex;align-items:baseline;gap:10px}
+section.cat h2 small{font-family:var(--sans);font-weight:400;font-size:11px;color:var(--muted);letter-spacing:.1em}
+.items{list-style:none;margin:6px 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:0 22px}
+.item{display:grid;grid-template-columns:1fr auto;align-items:center;gap:2px 12px;padding:10px 0;border-bottom:1px dashed var(--line)}
+.item .nm{font-family:var(--serif);font-weight:600;font-size:17px;line-height:1.3}
+.item .jp{font-size:12px;color:var(--muted)}
+.item .pr{font-family:var(--mono);font-size:15px;color:var(--tare);font-weight:600;text-align:right}
+.item .ctl{grid-column:1/-1;justify-self:end}
+.item.has{background:linear-gradient(90deg,var(--tare-soft),transparent 85%)}
+.item.out{opacity:.45}
+.item.out .ctl::before{content:"今日售完";font-size:12px;color:var(--bad)}
+
+.step{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:999px;background:var(--surface);overflow:hidden}
+.step button{width:36px;height:36px;border:0;background:none;font-size:18px;line-height:1}
+.step button:hover{background:var(--tare-soft)}
+.step button:disabled{opacity:.3;cursor:default;background:none}
+.step output{min-width:28px;text-align:center;font-family:var(--mono);font-weight:600}
+.add{height:36px;padding:0 16px;border-radius:999px;border:1px solid var(--tare);background:none;color:var(--tare);font-weight:700}
+.add:hover{background:var(--tare);color:var(--surface)}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow)}
+aside.cart{position:sticky;top:calc(env(safe-area-inset-top,0px) + 66px);display:flex;flex-direction:column;max-height:calc(100vh - 80px)}
+.ph{padding:14px 16px 10px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.ph h3{margin:0;font-family:var(--serif);font-size:18px}
+.pb{overflow-y:auto;padding:4px 16px;flex:1}
+.line{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
+.line .q{color:var(--muted)}
+.line.void{color:var(--muted);text-decoration:line-through}
+.pf{padding:12px 16px 14px;border-top:2px solid var(--ink);display:grid;gap:8px}
+.pf textarea{width:100%;font-size:13px;background:var(--ground);border:1px solid var(--line);border-radius:6px;padding:8px;resize:vertical;min-height:38px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px}
+.row.big{font-size:15px;font-weight:700}
+.row.big .num{font-size:22px}
+.meter{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.meter i{display:block;height:100%;background:var(--tare);transition:width .25s}
+.meter.met i{background:var(--ok)}
+.btn{height:46px;border-radius:8px;border:1px solid var(--ink);background:none;font-weight:700;font-size:15px;padding:0 16px}
+.btn.primary{background:var(--ember);border-color:var(--ember);color:var(--ember-ink)}
+.btn.ok{background:var(--ok);border-color:var(--ok);color:var(--surface)}
+.btn.small{height:34px;font-size:13px;padding:0 12px}
+.btn:disabled{opacity:.35;cursor:default}
+.btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+
+/* ---- 廚房 ---- */
+.kds{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;align-items:start}
+.ticket{background:var(--surface);border:1px solid var(--line);border-top:6px solid var(--tare);border-radius:8px;padding:12px 14px;display:grid;gap:8px}
+.ticket.late{border-top-color:var(--bad)}
+.ticket.mid{border-top-color:var(--warn)}
+.ticket .th{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.ticket .th b{font-family:var(--serif);font-size:22px}
+.ticket .age{font-family:var(--mono);font-size:14px;color:var(--muted)}
+.ticket.late .age{color:var(--bad);font-weight:600}
+.ticket ul{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.ticket li{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:20px;font-weight:500}
+.ticket li .num{font-weight:600}
+.ticket li button.it{all:unset;box-sizing:border-box;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;padding:8px 10px;border-radius:6px;border:1px solid var(--line);background:var(--ground)}
+.ticket li button.it:focus-visible{outline:2px solid var(--ember)}
+.ticket li button.it.part{background:var(--tare-soft);border-color:var(--tare)}
+.ticket li button.it.done{text-decoration:line-through;color:var(--muted);background:var(--ok-soft);border-color:var(--ok)}
+.ticket li .cnt{font-family:var(--mono);font-size:16px;white-space:nowrap}
+.ticket li.voided{text-decoration:line-through;color:var(--muted);font-size:16px;padding:0 10px}
+.ticket .sub{font-size:13px;color:var(--muted)}
+.kds-bar{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+.recent{margin-top:24px}
+.gtag{display:inline-block;font-size:11px;line-height:1.4;padding:0 6px;border-radius:4px;background:var(--ember);color:var(--ember-ink);vertical-align:1px}
+.qrgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.qrprev{max-height:46vh;overflow:auto}
+.qrprev .qrcard{cursor:pointer}
+.qrcard{border:1px dashed var(--line);border-radius:8px;padding:10px;text-align:center;display:grid;gap:4px;background:#fff;color:#000}
+.qrcard svg{width:100%;height:auto;max-width:180px;margin:0 auto}
+.qrshop{font-size:12px;letter-spacing:.3em}
+.qrtbl{font-size:22px}
+.qrhint{font-size:12px}
+.qrurl{font-size:9px;color:#666;word-break:break-all}
+@media print{
+  #print.qrsheet{padding:10mm}
+  #print.qrsheet .qrgrid{grid-template-columns:repeat(3,1fr);gap:8mm}
+  #print.qrsheet .qrcard{border:1px dashed #999;padding:5mm;break-inside:avoid}
+  #print.qrsheet .qrcard svg{max-width:55mm}
+  #print.qrsheet .qrtbl{font-size:26px}
+  #print.qrsheet .qrhint{font-size:13px}
+}
+.recent .row{padding:6px 0;border-bottom:1px dashed var(--line)}
+.ticket .nt{background:var(--tare-soft);border-radius:6px;padding:6px 8px;font-size:14px}
+.soldout{margin-top:26px}
+.soldout h3{font-family:var(--serif);font-size:17px;margin:0 0 4px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chips button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 12px;font-size:13px}
+.chips button[aria-pressed="true"]{background:var(--bad-soft);border-color:var(--bad);color:var(--bad);text-decoration:line-through}
+
+/* ---- 桌況 ---- */
+.floor{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.tcard{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--line);border-radius:8px;padding:10px 12px;text-align:left;display:grid;gap:2px}
+.tcard.dining{border-left-color:var(--tare)}
+.tcard .id{font-family:var(--serif);font-size:18px;font-weight:600;display:flex;justify-content:space-between}
+.tcard .st{font-size:12px;color:var(--muted)}
+.tcard .amt{font-family:var(--mono);color:var(--tare);font-weight:600}
+.tcard .pend{font-size:12px;color:var(--warn)}
+.tcard[aria-pressed="true"]{outline:2px solid var(--ember);outline-offset:1px}
+.tcard.drag-src{opacity:.4}
+.tcard.drop-ok{outline:3px dashed var(--ember);outline-offset:2px;background:var(--tare-soft)}
+.drag-ghost{position:fixed;z-index:60;pointer-events:none;background:var(--ink);color:var(--ground);padding:6px 12px;border-radius:8px;font-weight:700;box-shadow:var(--shadow);transform:translate(12px,12px)}
+@media (hover:hover){.floor .tcard{cursor:grab}}
+.billgrid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px;margin-top:18px;align-items:start}
+.round{font-size:12px;color:var(--muted);padding-top:10px}
+.x{border:0;background:none;color:var(--muted);font-size:13px;padding:2px 6px;border-radius:4px}
+.x:hover{background:var(--bad-soft);color:var(--bad)}
+.pays{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.pays button{height:40px;border:1px solid var(--line);background:var(--surface);border-radius:6px;font-size:14px}
+.pays button[aria-pressed="true"]{border-color:var(--ember);background:var(--tare-soft);font-weight:700}
+.warnbox{background:var(--tare-soft);border-radius:6px;padding:8px 10px;font-size:13px}
+
+/* ---- 日結 ---- */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:18px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 14px}
+.kpi .k{font-size:12px;color:var(--muted)}
+.kpi .v{font-family:var(--mono);font-size:24px;font-weight:600}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
+.tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:8px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:12px;color:var(--muted);font-weight:500;background:var(--sunk)}
+td.r,th.r{text-align:right}
+tr:last-child td{border-bottom:0}
+h2.sec{font-family:var(--serif);font-size:18px;margin:0 0 8px}
+.bar{height:8px;border-radius:4px;background:var(--tare);display:block;min-width:2px}
+details.hist{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 14px;margin-bottom:8px}
+details.hist summary{cursor:pointer;display:flex;justify-content:space-between;gap:10px}
+
+/* ---- 對話層 / 提示 ---- */
+.overlay{position:fixed;inset:0;background:rgba(15,10,6,.55);display:flex;align-items:center;justify-content:center;padding:16px;z-index:40}
+.sheet{background:var(--surface);color:var(--ink);border-radius:12px;max-width:440px;width:100%;max-height:86vh;overflow:auto;padding:22px;box-shadow:var(--shadow);display:grid;gap:12px}
+.sheet h3{margin:0;font-family:var(--serif);font-size:20px}
+.sheet textarea{width:100%;min-height:200px;font-family:var(--mono);font-size:14px;background:var(--ground);border:1px solid var(--line);border-radius:6px;padding:8px}
+.toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--ground);padding:10px 16px;border-radius:8px;font-size:14px;z-index:50;max-width:calc(100% - 32px)}
+
+.mbar{display:none}
+@media (max-width:900px){
+  .order,.billgrid,.two{grid-template-columns:1fr}
+  aside.cart{position:fixed;left:0;right:0;bottom:0;top:auto;border-radius:14px 14px 0 0;max-height:84vh;z-index:30;transform:translateY(105%);transition:transform .25s;padding-bottom:env(safe-area-inset-bottom,0px)}
+  aside.cart.open{transform:none}
+  .mbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:25;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));background:var(--ember);color:var(--ember-ink);border:0;width:100%;justify-content:space-between;align-items:center;font-weight:700}
+  .mbar strong{font-family:var(--mono);font-size:18px}
+  .scrim{position:fixed;inset:0;background:rgba(15,10,6,.45);z-index:28}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+/* 點餐畫面不用粗體(店家要求) */
+#app.ordview *,.mbar,.mbar *{font-weight:400!important}
+
+/* ---- 列印明細(熱感紙) ---- */
+#print{display:none}
+@media print{
+  @page{margin:0}
+  body{background:#fff!important}
+  body>*:not(#print){display:none!important}
+  #print{display:block!important;color:#000;background:#fff;font-family:"Microsoft JhengHei","PingFang TC","Noto Sans TC",sans-serif;font-size:12px;line-height:1.45;padding:3mm 2mm}
+  #print .rc-shop{font-size:20px;font-weight:700;text-align:center;letter-spacing:.3em}
+  #print .rc-title{text-align:center;font-size:13px;margin-bottom:4px}
+  #print .rc-hr{border-top:1px dashed #000;margin:5px 0}
+  #print .rc-hr2{border-top:2px solid #000;margin:5px 0}
+  #print table{width:100%;border-collapse:collapse;font-size:12px}
+  #print td{padding:1px 0;vertical-align:top;border:0;white-space:normal;background:none}
+  #print td.q{text-align:center;width:3em}
+  #print td.a{text-align:right;width:5em}
+  #print .rc-row{display:flex;justify-content:space-between;gap:6px}
+  #print .rc-total{font-size:16px;font-weight:700}
+  #print .rc-foot{text-align:center;font-size:11px;margin-top:6px}
+}
+</style>
+
+<header class="top">
+  <div class="top-in">
+    <span class="logo">鳥璇</span>
+    <nav class="tabs" id="tabs" role="tablist"></nav>
+    <span class="conn local" id="conn">連線中…</span>
+  </div>
+</header>
+
+<div class="wrap" id="app"></div>
+
+<button class="mbar" id="mbar" hidden><span id="mbarL"></span><span>本輪 <strong id="mbarR">0</strong> 元</span></button>
+<div class="scrim" id="scrim" hidden></div>
+<div class="overlay" id="overlay" hidden><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
+<div class="toast" id="toast" hidden></div>
+<div id="print" aria-hidden="true"></div>
+
+<script>
+//---------------------------------------------------------------------
+//
+// QR Code Generator for JavaScript
+//
+// Copyright (c) 2009 Kazuhiko Arase
+//
+// URL: http://www.d-project.com/
+//
+// Licensed under the MIT license:
+//  http://www.opensource.org/licenses/mit-license.php
+//
+// The word 'QR Code' is registered trademark of
+// DENSO WAVE INCORPORATED
+//  http://www.denso-wave.com/qrcode/faqpatent-e.html
+//
+//---------------------------------------------------------------------
+
+var qrcode = function() {
+
+  //---------------------------------------------------------------------
+  // qrcode
+  //---------------------------------------------------------------------
+
+  /**
+   * qrcode
+   * @param typeNumber 1 to 40
+   * @param errorCorrectionLevel 'L','M','Q','H'
+   */
+  var qrcode = function(typeNumber, errorCorrectionLevel) {
+
+    var PAD0 = 0xEC;
+    var PAD1 = 0x11;
+
+    var _typeNumber = typeNumber;
+    var _errorCorrectionLevel = QRErrorCorrectionLevel[errorCorrectionLevel];
+    var _modules = null;
+    var _moduleCount = 0;
+    var _dataCache = null;
+    var _dataList = [];
+
+    var _this = {};
+
+    var makeImpl = function(test, maskPattern) {
+
+      _moduleCount = _typeNumber * 4 + 17;
+      _modules = function(moduleCount) {
+        var modules = new Array(moduleCount);
+        for (var row = 0; row < moduleCount; row += 1) {
+          modules[row] = new Array(moduleCount);
+          for (var col = 0; col < moduleCount; col += 1) {
+            modules[row][col] = null;
+          }
+        }
+        return modules;
+      }(_moduleCount);
+
+      setupPositionProbePattern(0, 0);
+      setupPositionProbePattern(_moduleCount - 7, 0);
+      setupPositionProbePattern(0, _moduleCount - 7);
+      setupPositionAdjustPattern();
+      setupTimingPattern();
+      setupTypeInfo(test, maskPattern);
+
+      if (_typeNumber >= 7) {
+        setupTypeNumber(test);
+      }
+
+      if (_dataCache == null) {
+        _dataCache = createData(_typeNumber, _errorCorrectionLevel, _dataList);
+      }
+
+      mapData(_dataCache, maskPattern);
+    };
+
+    var setupPositionProbePattern = function(row, col) {
+
+      for (var r = -1; r <= 7; r += 1) {
+
+        if (row + r <= -1 || _moduleCount <= row + r) continue;
+
+        for (var c = -1; c <= 7; c += 1) {
+
+          if (col + c <= -1 || _moduleCount <= col + c) continue;
+
+          if ( (0 <= r && r <= 6 && (c == 0 || c == 6) )
+              || (0 <= c && c <= 6 && (r == 0 || r == 6) )
+              || (2 <= r && r <= 4 && 2 <= c && c <= 4) ) {
+            _modules[row + r][col + c] = true;
+          } else {
+            _modules[row + r][col + c] = false;
+          }
+        }
+      }
+    };
+
+    var getBestMaskPattern = function() {
+
+      var minLostPoint = 0;
+      var pattern = 0;
+
+      for (var i = 0; i < 8; i += 1) {
+
+        makeImpl(true, i);
+
+        var lostPoint = QRUtil.getLostPoint(_this);
+
+        if (i == 0 || minLostPoint > lostPoint) {
+          minLostPoint = lostPoint;
+          pattern = i;
+        }
+      }
+
+      return pattern;
+    };
+
+    var setupTimingPattern = function() {
+
+      for (var r = 8; r < _moduleCount - 8; r += 1) {
+        if (_modules[r][6] != null) {
+          continue;
+        }
+        _modules[r][6] = (r % 2 == 0);
+      }
+
+      for (var c = 8; c < _moduleCount - 8; c += 1) {
+        if (_modules[6][c] != null) {
+          continue;
+        }
+        _modules[6][c] = (c % 2 == 0);
+      }
+    };
+
+    var setupPositionAdjustPattern = function() {
+
+      var pos = QRUtil.getPatternPosition(_typeNumber);
+
+      for (var i = 0; i < pos.length; i += 1) {
+
+        for (var j = 0; j < pos.length; j += 1) {
+
+          var row = pos[i];
+          var col = pos[j];
+
+          if (_modules[row][col] != null) {
+            continue;
+          }
+
+          for (var r = -2; r <= 2; r += 1) {
+
+            for (var c = -2; c <= 2; c += 1) {
+
+              if (r == -2 || r == 2 || c == -2 || c == 2
+                  || (r == 0 && c == 0) ) {
+                _modules[row + r][col + c] = true;
+              } else {
+                _modules[row + r][col + c] = false;
+              }
+            }
+          }
+        }
+      }
+    };
+
+    var setupTypeNumber = function(test) {
+
+      var bits = QRUtil.getBCHTypeNumber(_typeNumber);
+
+      for (var i = 0; i < 18; i += 1) {
+        var mod = (!test && ( (bits >> i) & 1) == 1);
+        _modules[Math.floor(i / 3)][i % 3 + _moduleCount - 8 - 3] = mod;
+      }
+
+      for (var i = 0; i < 18; i += 1) {
+        var mod = (!test && ( (bits >> i) & 1) == 1);
+        _modules[i % 3 + _moduleCount - 8 - 3][Math.floor(i / 3)] = mod;
+      }
+    };
+
+    var setupTypeInfo = function(test, maskPattern) {
+
+      var data = (_errorCorrectionLevel << 3) | maskPattern;
+      var bits = QRUtil.getBCHTypeInfo(data);
+
+      // vertical
+      for (var i = 0; i < 15; i += 1) {
+
+        var mod = (!test && ( (bits >> i) & 1) == 1);
+
+        if (i < 6) {
+          _modules[i][8] = mod;
+        } else if (i < 8) {
+          _modules[i + 1][8] = mod;
+        } else {
+          _modules[_moduleCount - 15 + i][8] = mod;
+        }
+      }
+
+      // horizontal
+      for (var i = 0; i < 15; i += 1) {
+
+        var mod = (!test && ( (bits >> i) & 1) == 1);
+
+        if (i < 8) {
+          _modules[8][_moduleCount - i - 1] = mod;
+        } else if (i < 9) {
+          _modules[8][15 - i - 1 + 1] = mod;
+        } else {
+          _modules[8][15 - i - 1] = mod;
+        }
+      }
+
+      // fixed module
+      _modules[_moduleCount - 8][8] = (!test);
+    };
+
+    var mapData = function(data, maskPattern) {
+
+      var inc = -1;
+      var row = _moduleCount - 1;
+      var bitIndex = 7;
+      var byteIndex = 0;
+      var maskFunc = QRUtil.getMaskFunction(maskPattern);
+
+      for (var col = _moduleCount - 1; col > 0; col -= 2) {
+
+        if (col == 6) col -= 1;
+
+        while (true) {
+
+          for (var c = 0; c < 2; c += 1) {
+
+            if (_modules[row][col - c] == null) {
+
+              var dark = false;
+
+              if (byteIndex < data.length) {
+                dark = ( ( (data[byteIndex] >>> bitIndex) & 1) == 1);
+              }
+
+              var mask = maskFunc(row, col - c);
+
+              if (mask) {
+                dark = !dark;
+              }
+
+              _modules[row][col - c] = dark;
+              bitIndex -= 1;
+
+              if (bitIndex == -1) {
+                byteIndex += 1;
+                bitIndex = 7;
+              }
+            }
+          }
+
+          row += inc;
+
+          if (row < 0 || _moduleCount <= row) {
+            row -= inc;
+            inc = -inc;
+            break;
+          }
+        }
+      }
+    };
+
+    var createBytes = function(buffer, rsBlocks) {
+
+      var offset = 0;
+
+      var maxDcCount = 0;
+      var maxEcCount = 0;
+
+      var dcdata = new Array(rsBlocks.length);
+      var ecdata = new Array(rsBlocks.length);
+
+      for (var r = 0; r < rsBlocks.length; r += 1) {
+
+        var dcCount = rsBlocks[r].dataCount;
+        var ecCount = rsBlocks[r].totalCount - dcCount;
+
+        maxDcCount = Math.max(maxDcCount, dcCount);
+        maxEcCount = Math.max(maxEcCount, ecCount);
+
+        dcdata[r] = new Array(dcCount);
+
+        for (var i = 0; i < dcdata[r].length; i += 1) {
+          dcdata[r][i] = 0xff & buffer.getBuffer()[i + offset];
+        }
+        offset += dcCount;
+
+        var rsPoly = QRUtil.getErrorCorrectPolynomial(ecCount);
+        var rawPoly = qrPolynomial(dcdata[r], rsPoly.getLength() - 1);
+
+        var modPoly = rawPoly.mod(rsPoly);
+        ecdata[r] = new Array(rsPoly.getLength() - 1);
+        for (var i = 0; i < ecdata[r].length; i += 1) {
+          var modIndex = i + modPoly.getLength() - ecdata[r].length;
+          ecdata[r][i] = (modIndex >= 0)? modPoly.getAt(modIndex) : 0;
+        }
+      }
+
+      var totalCodeCount = 0;
+      for (var i = 0; i < rsBlocks.length; i += 1) {
+        totalCodeCount += rsBlocks[i].totalCount;
+      }
+
+      var data = new Array(totalCodeCount);
+      var index = 0;
+
+      for (var i = 0; i < maxDcCount; i += 1) {
+        for (var r = 0; r < rsBlocks.length; r += 1) {
+          if (i < dcdata[r].length) {
+            data[index] = dcdata[r][i];
+            index += 1;
+          }
+        }
+      }
+
+      for (var i = 0; i < maxEcCount; i += 1) {
+        for (var r = 0; r < rsBlocks.length; r += 1) {
+          if (i < ecdata[r].length) {
+            data[index] = ecdata[r][i];
+            index += 1;
+          }
+        }
+      }
+
+      return data;
+    };
+
+    var createData = function(typeNumber, errorCorrectionLevel, dataList) {
+
+      var rsBlocks = QRRSBlock.getRSBlocks(typeNumber, errorCorrectionLevel);
+
+      var buffer = qrBitBuffer();
+
+      for (var i = 0; i < dataList.length; i += 1) {
+        var data = dataList[i];
+        buffer.put(data.getMode(), 4);
+        buffer.put(data.getLength(), QRUtil.getLengthInBits(data.getMode(), typeNumber) );
+        data.write(buffer);
+      }
+
+      // calc num max data.
+      var totalDataCount = 0;
+      for (var i = 0; i < rsBlocks.length; i += 1) {
+        totalDataCount += rsBlocks[i].dataCount;
+      }
+
+      if (buffer.getLengthInBits() > totalDataCount * 8) {
+        throw 'code length overflow. ('
+          + buffer.getLengthInBits()
+          + '>'
+          + totalDataCount * 8
+          + ')';
+      }
+
+      // end code
+      if (buffer.getLengthInBits() + 4 <= totalDataCount * 8) {
+        buffer.put(0, 4);
+      }
+
+      // padding
+      while (buffer.getLengthInBits() % 8 != 0) {
+        buffer.putBit(false);
+      }
+
+      // padding
+      while (true) {
+
+        if (buffer.getLengthInBits() >= totalDataCount * 8) {
+          break;
+        }
+        buffer.put(PAD0, 8);
+
+        if (buffer.getLengthInBits() >= totalDataCount * 8) {
+          break;
+        }
+        buffer.put(PAD1, 8);
+      }
+
+      return createBytes(buffer, rsBlocks);
+    };
+
+    _this.addData = function(data, mode) {
+
+      mode = mode || 'Byte';
+
+      var newData = null;
+
+      switch(mode) {
+      case 'Numeric' :
+        newData = qrNumber(data);
+        break;
+      case 'Alphanumeric' :
+        newData = qrAlphaNum(data);
+        break;
+      case 'Byte' :
+        newData = qr8BitByte(data);
+        break;
+      case 'Kanji' :
+        newData = qrKanji(data);
+        break;
+      default :
+        throw 'mode:' + mode;
+      }
+
+      _dataList.push(newData);
+      _dataCache = null;
+    };
+
+    _this.isDark = function(row, col) {
+      if (row < 0 || _moduleCount <= row || col < 0 || _moduleCount <= col) {
+        throw row + ',' + col;
+      }
+      return _modules[row][col];
+    };
+
+    _this.getModuleCount = function() {
+      return _moduleCount;
+    };
+
+    _this.make = function() {
+      if (_typeNumber < 1) {
+        var typeNumber = 1;
+
+        for (; typeNumber < 40; typeNumber++) {
+          var rsBlocks = QRRSBlock.getRSBlocks(typeNumber, _errorCorrectionLevel);
+          var buffer = qrBitBuffer();
+
+          for (var i = 0; i < _dataList.length; i++) {
+            var data = _dataList[i];
+            buffer.put(data.getMode(), 4);
+            buffer.put(data.getLength(), QRUtil.getLengthInBits(data.getMode(), typeNumber) );
+            data.write(buffer);
+          }
+
+          var totalDataCount = 0;
+          for (var i = 0; i < rsBlocks.length; i++) {
+            totalDataCount += rsBlocks[i].dataCount;
+          }
+
+          if (buffer.getLengthInBits() <= totalDataCount * 8) {
+            break;
+          }
+        }
+
+        _typeNumber = typeNumber;
+      }
+
+      makeImpl(false, getBestMaskPattern() );
+    };
+
+    _this.createTableTag = function(cellSize, margin) {
+
+      cellSize = cellSize || 2;
+      margin = (typeof margin == 'undefined')? cellSize * 4 : margin;
+
+      var qrHtml = '';
+
+      qrHtml += '<table style="';
+      qrHtml += ' border-width: 0px; border-style: none;';
+      qrHtml += ' border-collapse: collapse;';
+      qrHtml += ' padding: 0px; margin: ' + margin + 'px;';
+      qrHtml += '">';
+      qrHtml += '<tbody>';
+
+      for (var r = 0; r < _this.getModuleCount(); r += 1) {
+
+        qrHtml += '<tr>';
+
+        for (var c = 0; c < _this.getModuleCount(); c += 1) {
+          qrHtml += '<td style="';
+          qrHtml += ' border-width: 0px; border-style: none;';
+          qrHtml += ' border-collapse: collapse;';
+          qrHtml += ' padding: 0px; margin: 0px;';
+          qrHtml += ' width: ' + cellSize + 'px;';
+          qrHtml += ' height: ' + cellSize + 'px;';
+          qrHtml += ' background-color: ';
+          qrHtml += _this.isDark(r, c)? '#000000' : '#ffffff';
+          qrHtml += ';';
+          qrHtml += '"/>';
+        }
+
+        qrHtml += '</tr>';
+      }
+
+      qrHtml += '</tbody>';
+      qrHtml += '</table>';
+
+      return qrHtml;
+    };
+
+    _this.createSvgTag = function(cellSize, margin, alt, title) {
+
+      var opts = {};
+      if (typeof arguments[0] == 'object') {
+        // Called by options.
+        opts = arguments[0];
+        // overwrite cellSize and margin.
+        cellSize = opts.cellSize;
+        margin = opts.margin;
+        alt = opts.alt;
+        title = opts.title;
+      }
+
+      cellSize = cellSize || 2;
+      margin = (typeof margin == 'undefined')? cellSize * 4 : margin;
+
+      // Compose alt property surrogate
+      alt = (typeof alt === 'string') ? {text: alt} : alt || {};
+      alt.text = alt.text || null;
+      alt.id = (alt.text) ? alt.id || 'qrcode-description' : null;
+
+      // Compose title property surrogate
+      title = (typeof title === 'string') ? {text: title} : title || {};
+      title.text = title.text || null;
+      title.id = (title.text) ? title.id || 'qrcode-title' : null;
+
+      var size = _this.getModuleCount() * cellSize + margin * 2;
+      var c, mc, r, mr, qrSvg='', rect;
+
+      rect = 'l' + cellSize + ',0 0,' + cellSize +
+        ' -' + cellSize + ',0 0,-' + cellSize + 'z ';
+
+      qrSvg += '<svg version="1.1" xmlns="http://www.w3.org/2000/svg"';
+      qrSvg += !opts.scalable ? ' width="' + size + 'px" height="' + size + 'px"' : '';
+      qrSvg += ' viewBox="0 0 ' + size + ' ' + size + '" ';
+      qrSvg += ' preserveAspectRatio="xMinYMin meet"';
+      qrSvg += (title.text || alt.text) ? ' role="img" aria-labelledby="' +
+          escapeXml([title.id, alt.id].join(' ').trim() ) + '"' : '';
+      qrSvg += '>';
+      qrSvg += (title.text) ? '<title id="' + escapeXml(title.id) + '">' +
+          escapeXml(title.text) + '</title>' : '';
+      qrSvg += (alt.text) ? '<description id="' + escapeXml(alt.id) + '">' +
+          escapeXml(alt.text) + '</description>' : '';
+      qrSvg += '<rect width="100%" height="100%" fill="white" cx="0" cy="0"/>';
+      qrSvg += '<path d="';
+
+      for (r = 0; r < _this.getModuleCount(); r += 1) {
+        mr = r * cellSize + margin;
+        for (c = 0; c < _this.getModuleCount(); c += 1) {
+          if (_this.isDark(r, c) ) {
+            mc = c*cellSize+margin;
+            qrSvg += 'M' + mc + ',' + mr + rect;
+          }
+        }
+      }
+
+      qrSvg += '" stroke="transparent" fill="black"/>';
+      qrSvg += '</svg>';
+
+      return qrSvg;
+    };
+
+    _this.createDataURL = function(cellSize, margin) {
+
+      cellSize = cellSize || 2;
+      margin = (typeof margin == 'undefined')? cellSize * 4 : margin;
+
+      var size = _this.getModuleCount() * cellSize + margin * 2;
+      var min = margin;
+      var max = size - margin;
+
+      return createDataURL(size, size, function(x, y) {
+        if (min <= x && x < max && min <= y && y < max) {
+          var c = Math.floor( (x - min) / cellSize);
+          var r = Math.floor( (y - min) / cellSize);
+          return _this.isDark(r, c)? 0 : 1;
+        } else {
+          return 1;
+        }
+      } );
+    };
+
+    _this.createImgTag = function(cellSize, margin, alt) {
+
+      cellSize = cellSize || 2;
+      margin = (typeof margin == 'undefined')? cellSize * 4 : margin;
+
+      var size = _this.getModuleCount() * cellSize + margin * 2;
+
+      var img = '';
+      img += '<img';
+      img += '\u0020src="';
+      img += _this.createDataURL(cellSize, margin);
+      img += '"';
+      img += '\u0020width="';
+      img += size;
+      img += '"';
+      img += '\u0020height="';
+      img += size;
+      img += '"';
+      if (alt) {
+        img += '\u0020alt="';
+        img += escapeXml(alt);
+        img += '"';
+      }
+      img += '/>';
+
+      return img;
+    };
+
+    var escapeXml = function(s) {
+      var escaped = '';
+      for (var i = 0; i < s.length; i += 1) {
+        var c = s.charAt(i);
+        switch(c) {
+        case '<': escaped += '&lt;'; break;
+        case '>': escaped += '&gt;'; break;
+        case '&': escaped += '&amp;'; break;
+        case '"': escaped += '&quot;'; break;
+        default : escaped += c; break;
+        }
+      }
+      return escaped;
+    };
+
+    var _createHalfASCII = function(margin) {
+      var cellSize = 1;
+      margin = (typeof margin == 'undefined')? cellSize * 2 : margin;
+
+      var size = _this.getModuleCount() * cellSize + margin * 2;
+      var min = margin;
+      var max = size - margin;
+
+      var y, x, r1, r2, p;
+
+      var blocks = {
+        '██': '█',
+        '█ ': '▀',
+        ' █': '▄',
+        '  ': ' '
+      };
+
+      var blocksLastLineNoMargin = {
+        '██': '▀',
+        '█ ': '▀',
+        ' █': ' ',
+        '  ': ' '
+      };
+
+      var ascii = '';
+      for (y = 0; y < size; y += 2) {
+        r1 = Math.floor((y - min) / cellSize);
+        r2 = Math.floor((y + 1 - min) / cellSize);
+        for (x = 0; x < size; x += 1) {
+          p = '█';
+
+          if (min <= x && x < max && min <= y && y < max && _this.isDark(r1, Math.floor((x - min) / cellSize))) {
+            p = ' ';
+          }
+
+          if (min <= x && x < max && min <= y+1 && y+1 < max && _this.isDark(r2, Math.floor((x - min) / cellSize))) {
+            p += ' ';
+          }
+          else {
+            p += '█';
+          }
+
+          // Output 2 characters per pixel, to create full square. 1 character per pixels gives only half width of square.
+          ascii += (margin < 1 && y+1 >= max) ? blocksLastLineNoMargin[p] : blocks[p];
+        }
+
+        ascii += '\n';
+      }
+
+      if (size % 2 && margin > 0) {
+        return ascii.substring(0, ascii.length - size - 1) + Array(size+1).join('▀');
+      }
+
+      return ascii.substring(0, ascii.length-1);
+    };
+
+    _this.createASCII = function(cellSize, margin) {
+      cellSize = cellSize || 1;
+
+      if (cellSize < 2) {
+        return _createHalfASCII(margin);
+      }
+
+      cellSize -= 1;
+      margin = (typeof margin == 'undefined')? cellSize * 2 : margin;
+
+      var size = _this.getModuleCount() * cellSize + margin * 2;
+      var min = margin;
+      var max = size - margin;
+
+      var y, x, r, p;
+
+      var white = Array(cellSize+1).join('██');
+      var black = Array(cellSize+1).join('  ');
+
+      var ascii = '';
+      var line = '';
+      for (y = 0; y < size; y += 1) {
+        r = Math.floor( (y - min) / cellSize);
+        line = '';
+        for (x = 0; x < size; x += 1) {
+          p = 1;
+
+          if (min <= x && x < max && min <= y && y < max && _this.isDark(r, Math.floor((x - min) / cellSize))) {
+            p = 0;
+          }
+
+          // Output 2 characters per pixel, to create full square. 1 character per pixels gives only half width of square.
+          line += p ? white : black;
+        }
+
+        for (r = 0; r < cellSize; r += 1) {
+          ascii += line + '\n';
+        }
+      }
+
+      return ascii.substring(0, ascii.length-1);
+    };
+
+    _this.renderTo2dContext = function(context, cellSize) {
+      cellSize = cellSize || 2;
+      var length = _this.getModuleCount();
+      for (var row = 0; row < length; row++) {
+        for (var col = 0; col < length; col++) {
+          context.fillStyle = _this.isDark(row, col) ? 'black' : 'white';
+          context.fillRect(row * cellSize, col * cellSize, cellSize, cellSize);
+        }
+      }
+    }
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // qrcode.stringToBytes
+  //---------------------------------------------------------------------
+
+  qrcode.stringToBytesFuncs = {
+    'default' : function(s) {
+      var bytes = [];
+      for (var i = 0; i < s.length; i += 1) {
+        var c = s.charCodeAt(i);
+        bytes.push(c & 0xff);
+      }
+      return bytes;
+    }
+  };
+
+  qrcode.stringToBytes = qrcode.stringToBytesFuncs['default'];
+
+  //---------------------------------------------------------------------
+  // qrcode.createStringToBytes
+  //---------------------------------------------------------------------
+
+  /**
+   * @param unicodeData base64 string of byte array.
+   * [16bit Unicode],[16bit Bytes], ...
+   * @param numChars
+   */
+  qrcode.createStringToBytes = function(unicodeData, numChars) {
+
+    // create conversion map.
+
+    var unicodeMap = function() {
+
+      var bin = base64DecodeInputStream(unicodeData);
+      var read = function() {
+        var b = bin.read();
+        if (b == -1) throw 'eof';
+        return b;
+      };
+
+      var count = 0;
+      var unicodeMap = {};
+      while (true) {
+        var b0 = bin.read();
+        if (b0 == -1) break;
+        var b1 = read();
+        var b2 = read();
+        var b3 = read();
+        var k = String.fromCharCode( (b0 << 8) | b1);
+        var v = (b2 << 8) | b3;
+        unicodeMap[k] = v;
+        count += 1;
+      }
+      if (count != numChars) {
+        throw count + ' != ' + numChars;
+      }
+
+      return unicodeMap;
+    }();
+
+    var unknownChar = '?'.charCodeAt(0);
+
+    return function(s) {
+      var bytes = [];
+      for (var i = 0; i < s.length; i += 1) {
+        var c = s.charCodeAt(i);
+        if (c < 128) {
+          bytes.push(c);
+        } else {
+          var b = unicodeMap[s.charAt(i)];
+          if (typeof b == 'number') {
+            if ( (b & 0xff) == b) {
+              // 1byte
+              bytes.push(b);
+            } else {
+              // 2bytes
+              bytes.push(b >>> 8);
+              bytes.push(b & 0xff);
+            }
+          } else {
+            bytes.push(unknownChar);
+          }
+        }
+      }
+      return bytes;
+    };
+  };
+
+  //---------------------------------------------------------------------
+  // QRMode
+  //---------------------------------------------------------------------
+
+  var QRMode = {
+    MODE_NUMBER :    1 << 0,
+    MODE_ALPHA_NUM : 1 << 1,
+    MODE_8BIT_BYTE : 1 << 2,
+    MODE_KANJI :     1 << 3
+  };
+
+  //---------------------------------------------------------------------
+  // QRErrorCorrectionLevel
+  //---------------------------------------------------------------------
+
+  var QRErrorCorrectionLevel = {
+    L : 1,
+    M : 0,
+    Q : 3,
+    H : 2
+  };
+
+  //---------------------------------------------------------------------
+  // QRMaskPattern
+  //---------------------------------------------------------------------
+
+  var QRMaskPattern = {
+    PATTERN000 : 0,
+    PATTERN001 : 1,
+    PATTERN010 : 2,
+    PATTERN011 : 3,
+    PATTERN100 : 4,
+    PATTERN101 : 5,
+    PATTERN110 : 6,
+    PATTERN111 : 7
+  };
+
+  //---------------------------------------------------------------------
+  // QRUtil
+  //---------------------------------------------------------------------
+
+  var QRUtil = function() {
+
+    var PATTERN_POSITION_TABLE = [
+      [],
+      [6, 18],
+      [6, 22],
+      [6, 26],
+      [6, 30],
+      [6, 34],
+      [6, 22, 38],
+      [6, 24, 42],
+      [6, 26, 46],
+      [6, 28, 50],
+      [6, 30, 54],
+      [6, 32, 58],
+      [6, 34, 62],
+      [6, 26, 46, 66],
+      [6, 26, 48, 70],
+      [6, 26, 50, 74],
+      [6, 30, 54, 78],
+      [6, 30, 56, 82],
+      [6, 30, 58, 86],
+      [6, 34, 62, 90],
+      [6, 28, 50, 72, 94],
+      [6, 26, 50, 74, 98],
+      [6, 30, 54, 78, 102],
+      [6, 28, 54, 80, 106],
+      [6, 32, 58, 84, 110],
+      [6, 30, 58, 86, 114],
+      [6, 34, 62, 90, 118],
+      [6, 26, 50, 74, 98, 122],
+      [6, 30, 54, 78, 102, 126],
+      [6, 26, 52, 78, 104, 130],
+      [6, 30, 56, 82, 108, 134],
+      [6, 34, 60, 86, 112, 138],
+      [6, 30, 58, 86, 114, 142],
+      [6, 34, 62, 90, 118, 146],
+      [6, 30, 54, 78, 102, 126, 150],
+      [6, 24, 50, 76, 102, 128, 154],
+      [6, 28, 54, 80, 106, 132, 158],
+      [6, 32, 58, 84, 110, 136, 162],
+      [6, 26, 54, 82, 110, 138, 166],
+      [6, 30, 58, 86, 114, 142, 170]
+    ];
+    var G15 = (1 << 10) | (1 << 8) | (1 << 5) | (1 << 4) | (1 << 2) | (1 << 1) | (1 << 0);
+    var G18 = (1 << 12) | (1 << 11) | (1 << 10) | (1 << 9) | (1 << 8) | (1 << 5) | (1 << 2) | (1 << 0);
+    var G15_MASK = (1 << 14) | (1 << 12) | (1 << 10) | (1 << 4) | (1 << 1);
+
+    var _this = {};
+
+    var getBCHDigit = function(data) {
+      var digit = 0;
+      while (data != 0) {
+        digit += 1;
+        data >>>= 1;
+      }
+      return digit;
+    };
+
+    _this.getBCHTypeInfo = function(data) {
+      var d = data << 10;
+      while (getBCHDigit(d) - getBCHDigit(G15) >= 0) {
+        d ^= (G15 << (getBCHDigit(d) - getBCHDigit(G15) ) );
+      }
+      return ( (data << 10) | d) ^ G15_MASK;
+    };
+
+    _this.getBCHTypeNumber = function(data) {
+      var d = data << 12;
+      while (getBCHDigit(d) - getBCHDigit(G18) >= 0) {
+        d ^= (G18 << (getBCHDigit(d) - getBCHDigit(G18) ) );
+      }
+      return (data << 12) | d;
+    };
+
+    _this.getPatternPosition = function(typeNumber) {
+      return PATTERN_POSITION_TABLE[typeNumber - 1];
+    };
+
+    _this.getMaskFunction = function(maskPattern) {
+
+      switch (maskPattern) {
+
+      case QRMaskPattern.PATTERN000 :
+        return function(i, j) { return (i + j) % 2 == 0; };
+      case QRMaskPattern.PATTERN001 :
+        return function(i, j) { return i % 2 == 0; };
+      case QRMaskPattern.PATTERN010 :
+        return function(i, j) { return j % 3 == 0; };
+      case QRMaskPattern.PATTERN011 :
+        return function(i, j) { return (i + j) % 3 == 0; };
+      case QRMaskPattern.PATTERN100 :
+        return function(i, j) { return (Math.floor(i / 2) + Math.floor(j / 3) ) % 2 == 0; };
+      case QRMaskPattern.PATTERN101 :
+        return function(i, j) { return (i * j) % 2 + (i * j) % 3 == 0; };
+      case QRMaskPattern.PATTERN110 :
+        return function(i, j) { return ( (i * j) % 2 + (i * j) % 3) % 2 == 0; };
+      case QRMaskPattern.PATTERN111 :
+        return function(i, j) { return ( (i * j) % 3 + (i + j) % 2) % 2 == 0; };
+
+      default :
+        throw 'bad maskPattern:' + maskPattern;
+      }
+    };
+
+    _this.getErrorCorrectPolynomial = function(errorCorrectLength) {
+      var a = qrPolynomial([1], 0);
+      for (var i = 0; i < errorCorrectLength; i += 1) {
+        a = a.multiply(qrPolynomial([1, QRMath.gexp(i)], 0) );
+      }
+      return a;
+    };
+
+    _this.getLengthInBits = function(mode, type) {
+
+      if (1 <= type && type < 10) {
+
+        // 1 - 9
+
+        switch(mode) {
+        case QRMode.MODE_NUMBER    : return 10;
+        case QRMode.MODE_ALPHA_NUM : return 9;
+        case QRMode.MODE_8BIT_BYTE : return 8;
+        case QRMode.MODE_KANJI     : return 8;
+        default :
+          throw 'mode:' + mode;
+        }
+
+      } else if (type < 27) {
+
+        // 10 - 26
+
+        switch(mode) {
+        case QRMode.MODE_NUMBER    : return 12;
+        case QRMode.MODE_ALPHA_NUM : return 11;
+        case QRMode.MODE_8BIT_BYTE : return 16;
+        case QRMode.MODE_KANJI     : return 10;
+        default :
+          throw 'mode:' + mode;
+        }
+
+      } else if (type < 41) {
+
+        // 27 - 40
+
+        switch(mode) {
+        case QRMode.MODE_NUMBER    : return 14;
+        case QRMode.MODE_ALPHA_NUM : return 13;
+        case QRMode.MODE_8BIT_BYTE : return 16;
+        case QRMode.MODE_KANJI     : return 12;
+        default :
+          throw 'mode:' + mode;
+        }
+
+      } else {
+        throw 'type:' + type;
+      }
+    };
+
+    _this.getLostPoint = function(qrcode) {
+
+      var moduleCount = qrcode.getModuleCount();
+
+      var lostPoint = 0;
+
+      // LEVEL1
+
+      for (var row = 0; row < moduleCount; row += 1) {
+        for (var col = 0; col < moduleCount; col += 1) {
+
+          var sameCount = 0;
+          var dark = qrcode.isDark(row, col);
+
+          for (var r = -1; r <= 1; r += 1) {
+
+            if (row + r < 0 || moduleCount <= row + r) {
+              continue;
+            }
+
+            for (var c = -1; c <= 1; c += 1) {
+
+              if (col + c < 0 || moduleCount <= col + c) {
+                continue;
+              }
+
+              if (r == 0 && c == 0) {
+                continue;
+              }
+
+              if (dark == qrcode.isDark(row + r, col + c) ) {
+                sameCount += 1;
+              }
+            }
+          }
+
+          if (sameCount > 5) {
+            lostPoint += (3 + sameCount - 5);
+          }
+        }
+      };
+
+      // LEVEL2
+
+      for (var row = 0; row < moduleCount - 1; row += 1) {
+        for (var col = 0; col < moduleCount - 1; col += 1) {
+          var count = 0;
+          if (qrcode.isDark(row, col) ) count += 1;
+          if (qrcode.isDark(row + 1, col) ) count += 1;
+          if (qrcode.isDark(row, col + 1) ) count += 1;
+          if (qrcode.isDark(row + 1, col + 1) ) count += 1;
+          if (count == 0 || count == 4) {
+            lostPoint += 3;
+          }
+        }
+      }
+
+      // LEVEL3
+
+      for (var row = 0; row < moduleCount; row += 1) {
+        for (var col = 0; col < moduleCount - 6; col += 1) {
+          if (qrcode.isDark(row, col)
+              && !qrcode.isDark(row, col + 1)
+              &&  qrcode.isDark(row, col + 2)
+              &&  qrcode.isDark(row, col + 3)
+              &&  qrcode.isDark(row, col + 4)
+              && !qrcode.isDark(row, col + 5)
+              &&  qrcode.isDark(row, col + 6) ) {
+            lostPoint += 40;
+          }
+        }
+      }
+
+      for (var col = 0; col < moduleCount; col += 1) {
+        for (var row = 0; row < moduleCount - 6; row += 1) {
+          if (qrcode.isDark(row, col)
+              && !qrcode.isDark(row + 1, col)
+              &&  qrcode.isDark(row + 2, col)
+              &&  qrcode.isDark(row + 3, col)
+              &&  qrcode.isDark(row + 4, col)
+              && !qrcode.isDark(row + 5, col)
+              &&  qrcode.isDark(row + 6, col) ) {
+            lostPoint += 40;
+          }
+        }
+      }
+
+      // LEVEL4
+
+      var darkCount = 0;
+
+      for (var col = 0; col < moduleCount; col += 1) {
+        for (var row = 0; row < moduleCount; row += 1) {
+          if (qrcode.isDark(row, col) ) {
+            darkCount += 1;
+          }
+        }
+      }
+
+      var ratio = Math.abs(100 * darkCount / moduleCount / moduleCount - 50) / 5;
+      lostPoint += ratio * 10;
+
+      return lostPoint;
+    };
+
+    return _this;
+  }();
+
+  //---------------------------------------------------------------------
+  // QRMath
+  //---------------------------------------------------------------------
+
+  var QRMath = function() {
+
+    var EXP_TABLE = new Array(256);
+    var LOG_TABLE = new Array(256);
+
+    // initialize tables
+    for (var i = 0; i < 8; i += 1) {
+      EXP_TABLE[i] = 1 << i;
+    }
+    for (var i = 8; i < 256; i += 1) {
+      EXP_TABLE[i] = EXP_TABLE[i - 4]
+        ^ EXP_TABLE[i - 5]
+        ^ EXP_TABLE[i - 6]
+        ^ EXP_TABLE[i - 8];
+    }
+    for (var i = 0; i < 255; i += 1) {
+      LOG_TABLE[EXP_TABLE[i] ] = i;
+    }
+
+    var _this = {};
+
+    _this.glog = function(n) {
+
+      if (n < 1) {
+        throw 'glog(' + n + ')';
+      }
+
+      return LOG_TABLE[n];
+    };
+
+    _this.gexp = function(n) {
+
+      while (n < 0) {
+        n += 255;
+      }
+
+      while (n >= 256) {
+        n -= 255;
+      }
+
+      return EXP_TABLE[n];
+    };
+
+    return _this;
+  }();
+
+  //---------------------------------------------------------------------
+  // qrPolynomial
+  //---------------------------------------------------------------------
+
+  function qrPolynomial(num, shift) {
+
+    if (typeof num.length == 'undefined') {
+      throw num.length + '/' + shift;
+    }
+
+    var _num = function() {
+      var offset = 0;
+      while (offset < num.length && num[offset] == 0) {
+        offset += 1;
+      }
+      var _num = new Array(num.length - offset + shift);
+      for (var i = 0; i < num.length - offset; i += 1) {
+        _num[i] = num[i + offset];
+      }
+      return _num;
+    }();
+
+    var _this = {};
+
+    _this.getAt = function(index) {
+      return _num[index];
+    };
+
+    _this.getLength = function() {
+      return _num.length;
+    };
+
+    _this.multiply = function(e) {
+
+      var num = new Array(_this.getLength() + e.getLength() - 1);
+
+      for (var i = 0; i < _this.getLength(); i += 1) {
+        for (var j = 0; j < e.getLength(); j += 1) {
+          num[i + j] ^= QRMath.gexp(QRMath.glog(_this.getAt(i) ) + QRMath.glog(e.getAt(j) ) );
+        }
+      }
+
+      return qrPolynomial(num, 0);
+    };
+
+    _this.mod = function(e) {
+
+      if (_this.getLength() - e.getLength() < 0) {
+        return _this;
+      }
+
+      var ratio = QRMath.glog(_this.getAt(0) ) - QRMath.glog(e.getAt(0) );
+
+      var num = new Array(_this.getLength() );
+      for (var i = 0; i < _this.getLength(); i += 1) {
+        num[i] = _this.getAt(i);
+      }
+
+      for (var i = 0; i < e.getLength(); i += 1) {
+        num[i] ^= QRMath.gexp(QRMath.glog(e.getAt(i) ) + ratio);
+      }
+
+      // recursive call
+      return qrPolynomial(num, 0).mod(e);
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // QRRSBlock
+  //---------------------------------------------------------------------
+
+  var QRRSBlock = function() {
+
+    var RS_BLOCK_TABLE = [
+
+      // L
+      // M
+      // Q
+      // H
+
+      // 1
+      [1, 26, 19],
+      [1, 26, 16],
+      [1, 26, 13],
+      [1, 26, 9],
+
+      // 2
+      [1, 44, 34],
+      [1, 44, 28],
+      [1, 44, 22],
+      [1, 44, 16],
+
+      // 3
+      [1, 70, 55],
+      [1, 70, 44],
+      [2, 35, 17],
+      [2, 35, 13],
+
+      // 4
+      [1, 100, 80],
+      [2, 50, 32],
+      [2, 50, 24],
+      [4, 25, 9],
+
+      // 5
+      [1, 134, 108],
+      [2, 67, 43],
+      [2, 33, 15, 2, 34, 16],
+      [2, 33, 11, 2, 34, 12],
+
+      // 6
+      [2, 86, 68],
+      [4, 43, 27],
+      [4, 43, 19],
+      [4, 43, 15],
+
+      // 7
+      [2, 98, 78],
+      [4, 49, 31],
+      [2, 32, 14, 4, 33, 15],
+      [4, 39, 13, 1, 40, 14],
+
+      // 8
+      [2, 121, 97],
+      [2, 60, 38, 2, 61, 39],
+      [4, 40, 18, 2, 41, 19],
+      [4, 40, 14, 2, 41, 15],
+
+      // 9
+      [2, 146, 116],
+      [3, 58, 36, 2, 59, 37],
+      [4, 36, 16, 4, 37, 17],
+      [4, 36, 12, 4, 37, 13],
+
+      // 10
+      [2, 86, 68, 2, 87, 69],
+      [4, 69, 43, 1, 70, 44],
+      [6, 43, 19, 2, 44, 20],
+      [6, 43, 15, 2, 44, 16],
+
+      // 11
+      [4, 101, 81],
+      [1, 80, 50, 4, 81, 51],
+      [4, 50, 22, 4, 51, 23],
+      [3, 36, 12, 8, 37, 13],
+
+      // 12
+      [2, 116, 92, 2, 117, 93],
+      [6, 58, 36, 2, 59, 37],
+      [4, 46, 20, 6, 47, 21],
+      [7, 42, 14, 4, 43, 15],
+
+      // 13
+      [4, 133, 107],
+      [8, 59, 37, 1, 60, 38],
+      [8, 44, 20, 4, 45, 21],
+      [12, 33, 11, 4, 34, 12],
+
+      // 14
+      [3, 145, 115, 1, 146, 116],
+      [4, 64, 40, 5, 65, 41],
+      [11, 36, 16, 5, 37, 17],
+      [11, 36, 12, 5, 37, 13],
+
+      // 15
+      [5, 109, 87, 1, 110, 88],
+      [5, 65, 41, 5, 66, 42],
+      [5, 54, 24, 7, 55, 25],
+      [11, 36, 12, 7, 37, 13],
+
+      // 16
+      [5, 122, 98, 1, 123, 99],
+      [7, 73, 45, 3, 74, 46],
+      [15, 43, 19, 2, 44, 20],
+      [3, 45, 15, 13, 46, 16],
+
+      // 17
+      [1, 135, 107, 5, 136, 108],
+      [10, 74, 46, 1, 75, 47],
+      [1, 50, 22, 15, 51, 23],
+      [2, 42, 14, 17, 43, 15],
+
+      // 18
+      [5, 150, 120, 1, 151, 121],
+      [9, 69, 43, 4, 70, 44],
+      [17, 50, 22, 1, 51, 23],
+      [2, 42, 14, 19, 43, 15],
+
+      // 19
+      [3, 141, 113, 4, 142, 114],
+      [3, 70, 44, 11, 71, 45],
+      [17, 47, 21, 4, 48, 22],
+      [9, 39, 13, 16, 40, 14],
+
+      // 20
+      [3, 135, 107, 5, 136, 108],
+      [3, 67, 41, 13, 68, 42],
+      [15, 54, 24, 5, 55, 25],
+      [15, 43, 15, 10, 44, 16],
+
+      // 21
+      [4, 144, 116, 4, 145, 117],
+      [17, 68, 42],
+      [17, 50, 22, 6, 51, 23],
+      [19, 46, 16, 6, 47, 17],
+
+      // 22
+      [2, 139, 111, 7, 140, 112],
+      [17, 74, 46],
+      [7, 54, 24, 16, 55, 25],
+      [34, 37, 13],
+
+      // 23
+      [4, 151, 121, 5, 152, 122],
+      [4, 75, 47, 14, 76, 48],
+      [11, 54, 24, 14, 55, 25],
+      [16, 45, 15, 14, 46, 16],
+
+      // 24
+      [6, 147, 117, 4, 148, 118],
+      [6, 73, 45, 14, 74, 46],
+      [11, 54, 24, 16, 55, 25],
+      [30, 46, 16, 2, 47, 17],
+
+      // 25
+      [8, 132, 106, 4, 133, 107],
+      [8, 75, 47, 13, 76, 48],
+      [7, 54, 24, 22, 55, 25],
+      [22, 45, 15, 13, 46, 16],
+
+      // 26
+      [10, 142, 114, 2, 143, 115],
+      [19, 74, 46, 4, 75, 47],
+      [28, 50, 22, 6, 51, 23],
+      [33, 46, 16, 4, 47, 17],
+
+      // 27
+      [8, 152, 122, 4, 153, 123],
+      [22, 73, 45, 3, 74, 46],
+      [8, 53, 23, 26, 54, 24],
+      [12, 45, 15, 28, 46, 16],
+
+      // 28
+      [3, 147, 117, 10, 148, 118],
+      [3, 73, 45, 23, 74, 46],
+      [4, 54, 24, 31, 55, 25],
+      [11, 45, 15, 31, 46, 16],
+
+      // 29
+      [7, 146, 116, 7, 147, 117],
+      [21, 73, 45, 7, 74, 46],
+      [1, 53, 23, 37, 54, 24],
+      [19, 45, 15, 26, 46, 16],
+
+      // 30
+      [5, 145, 115, 10, 146, 116],
+      [19, 75, 47, 10, 76, 48],
+      [15, 54, 24, 25, 55, 25],
+      [23, 45, 15, 25, 46, 16],
+
+      // 31
+      [13, 145, 115, 3, 146, 116],
+      [2, 74, 46, 29, 75, 47],
+      [42, 54, 24, 1, 55, 25],
+      [23, 45, 15, 28, 46, 16],
+
+      // 32
+      [17, 145, 115],
+      [10, 74, 46, 23, 75, 47],
+      [10, 54, 24, 35, 55, 25],
+      [19, 45, 15, 35, 46, 16],
+
+      // 33
+      [17, 145, 115, 1, 146, 116],
+      [14, 74, 46, 21, 75, 47],
+      [29, 54, 24, 19, 55, 25],
+      [11, 45, 15, 46, 46, 16],
+
+      // 34
+      [13, 145, 115, 6, 146, 116],
+      [14, 74, 46, 23, 75, 47],
+      [44, 54, 24, 7, 55, 25],
+      [59, 46, 16, 1, 47, 17],
+
+      // 35
+      [12, 151, 121, 7, 152, 122],
+      [12, 75, 47, 26, 76, 48],
+      [39, 54, 24, 14, 55, 25],
+      [22, 45, 15, 41, 46, 16],
+
+      // 36
+      [6, 151, 121, 14, 152, 122],
+      [6, 75, 47, 34, 76, 48],
+      [46, 54, 24, 10, 55, 25],
+      [2, 45, 15, 64, 46, 16],
+
+      // 37
+      [17, 152, 122, 4, 153, 123],
+      [29, 74, 46, 14, 75, 47],
+      [49, 54, 24, 10, 55, 25],
+      [24, 45, 15, 46, 46, 16],
+
+      // 38
+      [4, 152, 122, 18, 153, 123],
+      [13, 74, 46, 32, 75, 47],
+      [48, 54, 24, 14, 55, 25],
+      [42, 45, 15, 32, 46, 16],
+
+      // 39
+      [20, 147, 117, 4, 148, 118],
+      [40, 75, 47, 7, 76, 48],
+      [43, 54, 24, 22, 55, 25],
+      [10, 45, 15, 67, 46, 16],
+
+      // 40
+      [19, 148, 118, 6, 149, 119],
+      [18, 75, 47, 31, 76, 48],
+      [34, 54, 24, 34, 55, 25],
+      [20, 45, 15, 61, 46, 16]
+    ];
+
+    var qrRSBlock = function(totalCount, dataCount) {
+      var _this = {};
+      _this.totalCount = totalCount;
+      _this.dataCount = dataCount;
+      return _this;
+    };
+
+    var _this = {};
+
+    var getRsBlockTable = function(typeNumber, errorCorrectionLevel) {
+
+      switch(errorCorrectionLevel) {
+      case QRErrorCorrectionLevel.L :
+        return RS_BLOCK_TABLE[(typeNumber - 1) * 4 + 0];
+      case QRErrorCorrectionLevel.M :
+        return RS_BLOCK_TABLE[(typeNumber - 1) * 4 + 1];
+      case QRErrorCorrectionLevel.Q :
+        return RS_BLOCK_TABLE[(typeNumber - 1) * 4 + 2];
+      case QRErrorCorrectionLevel.H :
+        return RS_BLOCK_TABLE[(typeNumber - 1) * 4 + 3];
+      default :
+        return undefined;
+      }
+    };
+
+    _this.getRSBlocks = function(typeNumber, errorCorrectionLevel) {
+
+      var rsBlock = getRsBlockTable(typeNumber, errorCorrectionLevel);
+
+      if (typeof rsBlock == 'undefined') {
+        throw 'bad rs block @ typeNumber:' + typeNumber +
+            '/errorCorrectionLevel:' + errorCorrectionLevel;
+      }
+
+      var length = rsBlock.length / 3;
+
+      var list = [];
+
+      for (var i = 0; i < length; i += 1) {
+
+        var count = rsBlock[i * 3 + 0];
+        var totalCount = rsBlock[i * 3 + 1];
+        var dataCount = rsBlock[i * 3 + 2];
+
+        for (var j = 0; j < count; j += 1) {
+          list.push(qrRSBlock(totalCount, dataCount) );
+        }
+      }
+
+      return list;
+    };
+
+    return _this;
+  }();
+
+  //---------------------------------------------------------------------
+  // qrBitBuffer
+  //---------------------------------------------------------------------
+
+  var qrBitBuffer = function() {
+
+    var _buffer = [];
+    var _length = 0;
+
+    var _this = {};
+
+    _this.getBuffer = function() {
+      return _buffer;
+    };
+
+    _this.getAt = function(index) {
+      var bufIndex = Math.floor(index / 8);
+      return ( (_buffer[bufIndex] >>> (7 - index % 8) ) & 1) == 1;
+    };
+
+    _this.put = function(num, length) {
+      for (var i = 0; i < length; i += 1) {
+        _this.putBit( ( (num >>> (length - i - 1) ) & 1) == 1);
+      }
+    };
+
+    _this.getLengthInBits = function() {
+      return _length;
+    };
+
+    _this.putBit = function(bit) {
+
+      var bufIndex = Math.floor(_length / 8);
+      if (_buffer.length <= bufIndex) {
+        _buffer.push(0);
+      }
+
+      if (bit) {
+        _buffer[bufIndex] |= (0x80 >>> (_length % 8) );
+      }
+
+      _length += 1;
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // qrNumber
+  //---------------------------------------------------------------------
+
+  var qrNumber = function(data) {
+
+    var _mode = QRMode.MODE_NUMBER;
+    var _data = data;
+
+    var _this = {};
+
+    _this.getMode = function() {
+      return _mode;
+    };
+
+    _this.getLength = function(buffer) {
+      return _data.length;
+    };
+
+    _this.write = function(buffer) {
+
+      var data = _data;
+
+      var i = 0;
+
+      while (i + 2 < data.length) {
+        buffer.put(strToNum(data.substring(i, i + 3) ), 10);
+        i += 3;
+      }
+
+      if (i < data.length) {
+        if (data.length - i == 1) {
+          buffer.put(strToNum(data.substring(i, i + 1) ), 4);
+        } else if (data.length - i == 2) {
+          buffer.put(strToNum(data.substring(i, i + 2) ), 7);
+        }
+      }
+    };
+
+    var strToNum = function(s) {
+      var num = 0;
+      for (var i = 0; i < s.length; i += 1) {
+        num = num * 10 + chatToNum(s.charAt(i) );
+      }
+      return num;
+    };
+
+    var chatToNum = function(c) {
+      if ('0' <= c && c <= '9') {
+        return c.charCodeAt(0) - '0'.charCodeAt(0);
+      }
+      throw 'illegal char :' + c;
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // qrAlphaNum
+  //---------------------------------------------------------------------
+
+  var qrAlphaNum = function(data) {
+
+    var _mode = QRMode.MODE_ALPHA_NUM;
+    var _data = data;
+
+    var _this = {};
+
+    _this.getMode = function() {
+      return _mode;
+    };
+
+    _this.getLength = function(buffer) {
+      return _data.length;
+    };
+
+    _this.write = function(buffer) {
+
+      var s = _data;
+
+      var i = 0;
+
+      while (i + 1 < s.length) {
+        buffer.put(
+          getCode(s.charAt(i) ) * 45 +
+          getCode(s.charAt(i + 1) ), 11);
+        i += 2;
+      }
+
+      if (i < s.length) {
+        buffer.put(getCode(s.charAt(i) ), 6);
+      }
+    };
+
+    var getCode = function(c) {
+
+      if ('0' <= c && c <= '9') {
+        return c.charCodeAt(0) - '0'.charCodeAt(0);
+      } else if ('A' <= c && c <= 'Z') {
+        return c.charCodeAt(0) - 'A'.charCodeAt(0) + 10;
+      } else {
+        switch (c) {
+        case ' ' : return 36;
+        case '$' : return 37;
+        case '%' : return 38;
+        case '*' : return 39;
+        case '+' : return 40;
+        case '-' : return 41;
+        case '.' : return 42;
+        case '/' : return 43;
+        case ':' : return 44;
+        default :
+          throw 'illegal char :' + c;
+        }
+      }
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // qr8BitByte
+  //---------------------------------------------------------------------
+
+  var qr8BitByte = function(data) {
+
+    var _mode = QRMode.MODE_8BIT_BYTE;
+    var _data = data;
+    var _bytes = qrcode.stringToBytes(data);
+
+    var _this = {};
+
+    _this.getMode = function() {
+      return _mode;
+    };
+
+    _this.getLength = function(buffer) {
+      return _bytes.length;
+    };
+
+    _this.write = function(buffer) {
+      for (var i = 0; i < _bytes.length; i += 1) {
+        buffer.put(_bytes[i], 8);
+      }
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // qrKanji
+  //---------------------------------------------------------------------
+
+  var qrKanji = function(data) {
+
+    var _mode = QRMode.MODE_KANJI;
+    var _data = data;
+
+    var stringToBytes = qrcode.stringToBytesFuncs['SJIS'];
+    if (!stringToBytes) {
+      throw 'sjis not supported.';
+    }
+    !function(c, code) {
+      // self test for sjis support.
+      var test = stringToBytes(c);
+      if (test.length != 2 || ( (test[0] << 8) | test[1]) != code) {
+        throw 'sjis not supported.';
+      }
+    }('\u53cb', 0x9746);
+
+    var _bytes = stringToBytes(data);
+
+    var _this = {};
+
+    _this.getMode = function() {
+      return _mode;
+    };
+
+    _this.getLength = function(buffer) {
+      return ~~(_bytes.length / 2);
+    };
+
+    _this.write = function(buffer) {
+
+      var data = _bytes;
+
+      var i = 0;
+
+      while (i + 1 < data.length) {
+
+        var c = ( (0xff & data[i]) << 8) | (0xff & data[i + 1]);
+
+        if (0x8140 <= c && c <= 0x9FFC) {
+          c -= 0x8140;
+        } else if (0xE040 <= c && c <= 0xEBBF) {
+          c -= 0xC140;
+        } else {
+          throw 'illegal char at ' + (i + 1) + '/' + c;
+        }
+
+        c = ( (c >>> 8) & 0xff) * 0xC0 + (c & 0xff);
+
+        buffer.put(c, 13);
+
+        i += 2;
+      }
+
+      if (i < data.length) {
+        throw 'illegal char at ' + (i + 1);
+      }
+    };
+
+    return _this;
+  };
+
+  //=====================================================================
+  // GIF Support etc.
+  //
+
+  //---------------------------------------------------------------------
+  // byteArrayOutputStream
+  //---------------------------------------------------------------------
+
+  var byteArrayOutputStream = function() {
+
+    var _bytes = [];
+
+    var _this = {};
+
+    _this.writeByte = function(b) {
+      _bytes.push(b & 0xff);
+    };
+
+    _this.writeShort = function(i) {
+      _this.writeByte(i);
+      _this.writeByte(i >>> 8);
+    };
+
+    _this.writeBytes = function(b, off, len) {
+      off = off || 0;
+      len = len || b.length;
+      for (var i = 0; i < len; i += 1) {
+        _this.writeByte(b[i + off]);
+      }
+    };
+
+    _this.writeString = function(s) {
+      for (var i = 0; i < s.length; i += 1) {
+        _this.writeByte(s.charCodeAt(i) );
+      }
+    };
+
+    _this.toByteArray = function() {
+      return _bytes;
+    };
+
+    _this.toString = function() {
+      var s = '';
+      s += '[';
+      for (var i = 0; i < _bytes.length; i += 1) {
+        if (i > 0) {
+          s += ',';
+        }
+        s += _bytes[i];
+      }
+      s += ']';
+      return s;
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // base64EncodeOutputStream
+  //---------------------------------------------------------------------
+
+  var base64EncodeOutputStream = function() {
+
+    var _buffer = 0;
+    var _buflen = 0;
+    var _length = 0;
+    var _base64 = '';
+
+    var _this = {};
+
+    var writeEncoded = function(b) {
+      _base64 += String.fromCharCode(encode(b & 0x3f) );
+    };
+
+    var encode = function(n) {
+      if (n < 0) {
+        // error.
+      } else if (n < 26) {
+        return 0x41 + n;
+      } else if (n < 52) {
+        return 0x61 + (n - 26);
+      } else if (n < 62) {
+        return 0x30 + (n - 52);
+      } else if (n == 62) {
+        return 0x2b;
+      } else if (n == 63) {
+        return 0x2f;
+      }
+      throw 'n:' + n;
+    };
+
+    _this.writeByte = function(n) {
+
+      _buffer = (_buffer << 8) | (n & 0xff);
+      _buflen += 8;
+      _length += 1;
+
+      while (_buflen >= 6) {
+        writeEncoded(_buffer >>> (_buflen - 6) );
+        _buflen -= 6;
+      }
+    };
+
+    _this.flush = function() {
+
+      if (_buflen > 0) {
+        writeEncoded(_buffer << (6 - _buflen) );
+        _buffer = 0;
+        _buflen = 0;
+      }
+
+      if (_length % 3 != 0) {
+        // padding
+        var padlen = 3 - _length % 3;
+        for (var i = 0; i < padlen; i += 1) {
+          _base64 += '=';
+        }
+      }
+    };
+
+    _this.toString = function() {
+      return _base64;
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // base64DecodeInputStream
+  //---------------------------------------------------------------------
+
+  var base64DecodeInputStream = function(str) {
+
+    var _str = str;
+    var _pos = 0;
+    var _buffer = 0;
+    var _buflen = 0;
+
+    var _this = {};
+
+    _this.read = function() {
+
+      while (_buflen < 8) {
+
+        if (_pos >= _str.length) {
+          if (_buflen == 0) {
+            return -1;
+          }
+          throw 'unexpected end of file./' + _buflen;
+        }
+
+        var c = _str.charAt(_pos);
+        _pos += 1;
+
+        if (c == '=') {
+          _buflen = 0;
+          return -1;
+        } else if (c.match(/^\s$/) ) {
+          // ignore if whitespace.
+          continue;
+        }
+
+        _buffer = (_buffer << 6) | decode(c.charCodeAt(0) );
+        _buflen += 6;
+      }
+
+      var n = (_buffer >>> (_buflen - 8) ) & 0xff;
+      _buflen -= 8;
+      return n;
+    };
+
+    var decode = function(c) {
+      if (0x41 <= c && c <= 0x5a) {
+        return c - 0x41;
+      } else if (0x61 <= c && c <= 0x7a) {
+        return c - 0x61 + 26;
+      } else if (0x30 <= c && c <= 0x39) {
+        return c - 0x30 + 52;
+      } else if (c == 0x2b) {
+        return 62;
+      } else if (c == 0x2f) {
+        return 63;
+      } else {
+        throw 'c:' + c;
+      }
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // gifImage (B/W)
+  //---------------------------------------------------------------------
+
+  var gifImage = function(width, height) {
+
+    var _width = width;
+    var _height = height;
+    var _data = new Array(width * height);
+
+    var _this = {};
+
+    _this.setPixel = function(x, y, pixel) {
+      _data[y * _width + x] = pixel;
+    };
+
+    _this.write = function(out) {
+
+      //---------------------------------
+      // GIF Signature
+
+      out.writeString('GIF87a');
+
+      //---------------------------------
+      // Screen Descriptor
+
+      out.writeShort(_width);
+      out.writeShort(_height);
+
+      out.writeByte(0x80); // 2bit
+      out.writeByte(0);
+      out.writeByte(0);
+
+      //---------------------------------
+      // Global Color Map
+
+      // black
+      out.writeByte(0x00);
+      out.writeByte(0x00);
+      out.writeByte(0x00);
+
+      // white
+      out.writeByte(0xff);
+      out.writeByte(0xff);
+      out.writeByte(0xff);
+
+      //---------------------------------
+      // Image Descriptor
+
+      out.writeString(',');
+      out.writeShort(0);
+      out.writeShort(0);
+      out.writeShort(_width);
+      out.writeShort(_height);
+      out.writeByte(0);
+
+      //---------------------------------
+      // Local Color Map
+
+      //---------------------------------
+      // Raster Data
+
+      var lzwMinCodeSize = 2;
+      var raster = getLZWRaster(lzwMinCodeSize);
+
+      out.writeByte(lzwMinCodeSize);
+
+      var offset = 0;
+
+      while (raster.length - offset > 255) {
+        out.writeByte(255);
+        out.writeBytes(raster, offset, 255);
+        offset += 255;
+      }
+
+      out.writeByte(raster.length - offset);
+      out.writeBytes(raster, offset, raster.length - offset);
+      out.writeByte(0x00);
+
+      //---------------------------------
+      // GIF Terminator
+      out.writeString(';');
+    };
+
+    var bitOutputStream = function(out) {
+
+      var _out = out;
+      var _bitLength = 0;
+      var _bitBuffer = 0;
+
+      var _this = {};
+
+      _this.write = function(data, length) {
+
+        if ( (data >>> length) != 0) {
+          throw 'length over';
+        }
+
+        while (_bitLength + length >= 8) {
+          _out.writeByte(0xff & ( (data << _bitLength) | _bitBuffer) );
+          length -= (8 - _bitLength);
+          data >>>= (8 - _bitLength);
+          _bitBuffer = 0;
+          _bitLength = 0;
+        }
+
+        _bitBuffer = (data << _bitLength) | _bitBuffer;
+        _bitLength = _bitLength + length;
+      };
+
+      _this.flush = function() {
+        if (_bitLength > 0) {
+          _out.writeByte(_bitBuffer);
+        }
+      };
+
+      return _this;
+    };
+
+    var getLZWRaster = function(lzwMinCodeSize) {
+
+      var clearCode = 1 << lzwMinCodeSize;
+      var endCode = (1 << lzwMinCodeSize) + 1;
+      var bitLength = lzwMinCodeSize + 1;
+
+      // Setup LZWTable
+      var table = lzwTable();
+
+      for (var i = 0; i < clearCode; i += 1) {
+        table.add(String.fromCharCode(i) );
+      }
+      table.add(String.fromCharCode(clearCode) );
+      table.add(String.fromCharCode(endCode) );
+
+      var byteOut = byteArrayOutputStream();
+      var bitOut = bitOutputStream(byteOut);
+
+      // clear code
+      bitOut.write(clearCode, bitLength);
+
+      var dataIndex = 0;
+
+      var s = String.fromCharCode(_data[dataIndex]);
+      dataIndex += 1;
+
+      while (dataIndex < _data.length) {
+
+        var c = String.fromCharCode(_data[dataIndex]);
+        dataIndex += 1;
+
+        if (table.contains(s + c) ) {
+
+          s = s + c;
+
+        } else {
+
+          bitOut.write(table.indexOf(s), bitLength);
+
+          if (table.size() < 0xfff) {
+
+            if (table.size() == (1 << bitLength) ) {
+              bitLength += 1;
+            }
+
+            table.add(s + c);
+          }
+
+          s = c;
+        }
+      }
+
+      bitOut.write(table.indexOf(s), bitLength);
+
+      // end code
+      bitOut.write(endCode, bitLength);
+
+      bitOut.flush();
+
+      return byteOut.toByteArray();
+    };
+
+    var lzwTable = function() {
+
+      var _map = {};
+      var _size = 0;
+
+      var _this = {};
+
+      _this.add = function(key) {
+        if (_this.contains(key) ) {
+          throw 'dup key:' + key;
+        }
+        _map[key] = _size;
+        _size += 1;
+      };
+
+      _this.size = function() {
+        return _size;
+      };
+
+      _this.indexOf = function(key) {
+        return _map[key];
+      };
+
+      _this.contains = function(key) {
+        return typeof _map[key] != 'undefined';
+      };
+
+      return _this;
+    };
+
+    return _this;
+  };
+
+  var createDataURL = function(width, height, getPixel) {
+    var gif = gifImage(width, height);
+    for (var y = 0; y < height; y += 1) {
+      for (var x = 0; x < width; x += 1) {
+        gif.setPixel(x, y, getPixel(x, y) );
+      }
+    }
+
+    var b = byteArrayOutputStream();
+    gif.write(b);
+
+    var base64 = base64EncodeOutputStream();
+    var bytes = b.toByteArray();
+    for (var i = 0; i < bytes.length; i += 1) {
+      base64.writeByte(bytes[i]);
+    }
+    base64.flush();
+
+    return 'data:image/gif;base64,' + base64;
+  };
+
+  //---------------------------------------------------------------------
+  // returns qrcode function.
+
+  return qrcode;
+}();
+
+// multibyte support
+!function() {
+
+  qrcode.stringToBytesFuncs['UTF-8'] = function(s) {
+    // http://stackoverflow.com/questions/18729405/how-to-convert-utf8-string-to-byte-array
+    function toUTF8Array(str) {
+      var utf8 = [];
+      for (var i=0; i < str.length; i++) {
+        var charcode = str.charCodeAt(i);
+        if (charcode < 0x80) utf8.push(charcode);
+        else if (charcode < 0x800) {
+          utf8.push(0xc0 | (charcode >> 6),
+              0x80 | (charcode & 0x3f));
+        }
+        else if (charcode < 0xd800 || charcode >= 0xe000) {
+          utf8.push(0xe0 | (charcode >> 12),
+              0x80 | ((charcode>>6) & 0x3f),
+              0x80 | (charcode & 0x3f));
+        }
+        // surrogate pair
+        else {
+          i++;
+          // UTF-16 encodes 0x10000-0x10FFFF by
+          // subtracting 0x10000 and splitting the
+          // 20 bits of 0x0-0xFFFFF into two halves
+          charcode = 0x10000 + (((charcode & 0x3ff)<<10)
+            | (str.charCodeAt(i) & 0x3ff));
+          utf8.push(0xf0 | (charcode >>18),
+              0x80 | ((charcode>>12) & 0x3f),
+              0x80 | ((charcode>>6) & 0x3f),
+              0x80 | (charcode & 0x3f));
+        }
+      }
+      return utf8;
+    }
+    return toUTF8Array(s);
+  };
+
+}();
+
+(function (factory) {
+  if (typeof define === 'function' && define.amd) {
+      define([], factory);
+  } else if (typeof exports === 'object') {
+      module.exports = factory();
+  }
+}(function () {
+    return qrcode;
+}));
+
+</script>
+<script>
+/* ============ 菜單(依店內菜單卡) ============ */
+const MENU = [
+  { id:"kushi", name:"雞肉串", en:"YAKITORI", items:[
+    ["kawa","鶏皮","かわ (Kawa)",105],["momo","鶏腿肉","もも (Momo)",115],["bonjiri","鶏尾肉","ぼんじり(bonjiri)",120],
+    ["hatsu","鶏心","ハツ(hatsu)",125],["sunagimo","鶏胗","砂ぎも(sunagimo)",125],["yagen","鶏胸軟骨","やげん(yagennankotsu)",130],
+    ["sasami","山葵鶏里肌(半熟)","ささみ (Sasami)",130],["tebamoto","手羽小腿","手羽先 (Tebasaki)",130],
+    ["seseri","鶏頸肉","せせり(seseri)",140],["tebasaki","手羽鶏翅","手羽先 (Tebasaki)",150] ]},
+  { id:"special", name:"特選串", en:"SPECIAL", items:[
+    ["hatsumoto","鶏心繫管","ハツ元(hatsumoto)",140],["harami","鶏横膈膜","ハラミ (Harami)",140],
+    ["s-mentai","明太鶏里肌","ささみ (Mentaiko)",160],["s-cheese","乳酪鶏里肌","ささみ (Mozzarella)",160],
+    ["s-kosho","柚子胡椒鶏里肌","ささみ (Yuzu Miso)",160],["s-miso","柚子味噌鶏里肌","ささみ (Yuzu Kosho)",160] ]},
+  { id:"side", name:"小菜", en:"SIDE", items:[
+    ["daikon","柚香蘿蔔","大根 (Daikon)",90],["onion","柚香洋蔥","オニオンスライス (Onion Slice)",180],
+    ["tara","鱈魚肝洋蔥","たら の きも (Tara no Kimo)",240] ]},
+  { id:"yasai", name:"野菜串", en:"VEGETABLE", items:[
+    ["eringi","杏包菇","エリンギ (Eringi)",95],["zucchini","櫛瓜","ズッキーニ (Zucchini)",95],
+    ["yamaimo","山藥","やまいも(Yamaimo)",120],["m-yamaimo","明太子山藥","やまいも(Mentaiko-Yamaimo)",170] ]},
+  { id:"rice", name:"飯類", en:"RICE", items:[
+    ["rice","白飯","ライス (Rice)",30],["onigiri","烤飯糰","焼きおにぎり (Yaki-onigiri)",80],
+    ["m-onigiri","明太子烤飯糰","焼きおにぎり (Mentaiko-onigiri)",120] ]},
+  { id:"ippin", name:"一品料理", en:"À LA CARTE", items:[
+    ["ponzu","鶏皮ポン酢","とりかわぽんず(torikawaponzu)",260],["tamago","玉子燒","たまごやき (Tamagoyaki)",300],
+    ["m-tamago","明太子玉子燒","たまごやき (Mentaiko)",360] ]},
+];
+const ITEM = {}; MENU.forEach(c=>c.items.forEach(([id,name,jp,price])=>ITEM[id]={id,name,jp,price,cat:c.id}));
+
+/* ============ 店規(依菜單卡「店內須知」) ============ */
+const MIN_PER_PERSON = 550;   // 低消以餐點計
+const CORKAGE = 500;          // 自備酒水每瓶
+const DAY_CUTOFF_HOUR = 5;    // 營業日切在清晨 5 點,過午夜的單仍算前一天
+const METHODS = [["cash","現金"],["card","信用卡"],["mobile","行動支付"]];
+const EXP_CATS = ["食材","酒水飲料","炭火燃料","耗材包材","人事","房租水電","雜支"];
+const EXP_SRC = [["drawer","收銀機現金"],["other","其他(老闆代墊、轉帳)"]];   // 從抽屜拿的錢,點鈔時要扣掉
+// id 固定寫死:改桌數時不會讓進行中的訂單對到別張桌
+const DEFAULT_TABLES = [["t01","吧台1"],["t02","吧台2"],["t03","吧台3"],["t04","吧台4"],
+  ["t07","A1"],["t08","A2"],["t09","A3"],["t10","A4"],["t11","B1"],["t12","B2"]];
+
+/* ============ 工具 ============ */
+const $ = s=>document.querySelector(s);
+const fmt = n=>Math.round(n).toLocaleString("zh-TW");
+const esc = s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const rid = ()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const hhmm = iso=>{const d=new Date(iso);return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");};
+function bizDay(d=new Date()){ const x=new Date(d); x.setHours(x.getHours()-DAY_CUTOFF_HOUR);
+  return x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")+"-"+String(x.getDate()).padStart(2,"0"); }
+function lsGet(k,f){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):f; }catch(e){ return f; } }
+function lsSet(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
+
+/* ============ 資料層:共用資料庫,拿不到就退回單機 ============ */
+const COLS = ["tables","orders","settles","days","config","shift","expenses"];
+/* ============ 資料層 ============
+   三種模式,依開啟方式自動選:
+   server = 店內電腦跑 server.py,手機連 Wi-Fi 打開(不用任何帳號,多台同步)
+   shared = 發布在 claude.ai 的共用網頁
+   local  = 直接開 html 檔,資料只存在這台 */
+const store = {
+  mode:"local", db:null, local:Object.assign(Object.fromEntries(COLS.map(c=>[c,{}])),lsGet("nx-local",{})), subs:{},
+  ver:-1, snap:null,
+  async put(col,id,data){ if(this.mode==="server") return this._op({op:"put",col,id,data});
+    if(this.db) return this.db.collection(col).doc(id).set(data);
+    this.local[col][id]=data; this._flush(col); },
+  async patch(col,id,data){ if(this.mode==="server") return this._op({op:"patch",col,id,data});
+    if(this.db) return this.db.collection(col).doc(id).update(data);
+    this.local[col][id]={...(this.local[col][id]||{}),...data}; this._flush(col); },
+  async del(col,id){ if(this.mode==="server") return this._op({op:"del",col,id});
+    if(this.db) return this.db.collection(col).doc(id).delete();
+    delete this.local[col][id]; this._flush(col); },
+  watch(col,cb){ this.subs[col]=cb;
+    if(this.mode==="server"){ if(this.snap) cb(this._docs(this.snap,col)); return; }
+    if(this.db) return this.db.collection(col).onSnapshot(s=>cb(s.docs.map(d=>({...d.data(),id:d.id}))), e=>{ console.warn(col,e); if(e.code==="revoked") setConn("local","已離線"); });
+    cb(Object.entries(this.local[col]).map(([id,v])=>({...v,id}))); },
+  _flush(col){ lsSet("nx-local",this.local); this.subs[col]&&this.subs[col](Object.entries(this.local[col]).map(([id,v])=>({...v,id}))); },
+  _docs(data,col){ return Object.entries(data[col]||{}).map(([id,v])=>({...v,id})); },
+  _apply(st){ if(st.data){ const prev=this.snap||{}; this.snap=st.data; this.ver=st.version;
+      Object.entries(this.subs).forEach(([c,cb])=>{ if(JSON.stringify(prev[c])!==JSON.stringify(st.data[c])) cb(this._docs(st.data,c)); }); } },
+  async _op(body){ const r=await fetch("api/op",{method:"POST",headers:{"Content-Type":"application/json","X-PIN":lsGet("nx-pin","")},body:JSON.stringify(body)});
+    if(r.status===401){ askPin(); throw {code:"server",message:"需要店員密碼"}; }
+    if(!r.ok) throw {code:"server",message:await r.text()}; this._apply(await r.json()); },
+  async _poll(){   // 每 1.5 秒問一次有沒有新資料;版本沒變時伺服器只回一個數字
+    try{ const r=await fetch("api/state?v="+this.ver,{cache:"no-store",headers:{"X-PIN":lsGet("nx-pin","")}});
+      if(r.status===401){ askPin(); return; } if(!r.ok) throw 0;
+      this._apply(await r.json()); if(this.down){ this.down=false; setConn("shared","店內連線 · 同步中"); } }
+    catch(e){ if(!this.down){ this.down=true; setConn("local","連不到店內電腦"); toast("連不到店內電腦,請確認它還開著、手機連的是店裡 Wi-Fi"); } }
+    setTimeout(()=>this._poll(),1500); }
+};
+
+/* ============ 狀態 ============ */
+const S = { tables:{}, orders:[], settles:[], days:[], config:{}, shift:null, expenses:[], expSrc:"drawer",
+  tab: lsGet("nx-tab","order"), sound: lsGet("nx-sound",false), sel: null, bill: null, method: "cash", drawer:false };
+let carts = lsGet("nx-carts",{});   // 各台裝置自己的暫存點單,送出前不共用
+
+const tableList = ()=> (S.config.main?.tables?.length ? S.config.main.tables : DEFAULT_TABLES.map(([id,label])=>({id,label})));
+const baseLabel = id => (tableList().find(t=>t.id===id)||{label:id}).label;
+const tableLabel = id => { const t=S.tables[id]; return [baseLabel(id),...((t&&t.status==="dining"&&t.merged)||[]).map(baseLabel)].join("+"); };
+const mergedInto = id => { const t=S.tables[id]; return t&&t.status==="merged"&&T(t.into) ? t.into : null; };
+const soldout = ()=> new Set();   // 售完功能隨廚房頁一起拿掉
+const T = id => S.tables[id] && S.tables[id].status==="dining" ? S.tables[id] : null;
+const sessionOrders = id => { const t=T(id); return t ? S.orders.filter(o=>o.session===t.session).sort((a,b)=>a.at<b.at?-1:1) : []; };
+const lineSum = lines => lines.reduce((s,l)=>s+l.price*l.q,0);
+function tableBill(id){
+  const t=T(id); if(!t) return null;
+  const merged={}; sessionOrders(id).forEach(o=>o.lines.forEach(l=>{ if(l.q>0){ merged[l.id] ||= {...l,q:0}; merged[l.id].q+=l.q; } }));
+  const lines=Object.values(merged), food=lineSum(lines), min=MIN_PER_PERSON*t.people;
+  const gap=Math.max(0,min-food), cork=(t.cork||0)*CORKAGE;
+  const shortfall=0;   // 店家要求:結帳只收菜單價格,不顯示也不加收低消
+  return { lines, food, min, gap, shortfall, cork, due: food+shortfall+cork };
+}
+const cart = id => { const c=(carts[id] ||= {items:{},note:""}); c.custom ||= {}; return c; };
+const saveCarts = ()=>lsSet("nx-carts",carts);
+const cartLines = id => [...Object.entries(cart(id).items).filter(([k,q])=>q>0&&ITEM[k]).map(([k,q])=>({id:k,name:ITEM[k].name,price:ITEM[k].price,q})),
+  ...Object.entries(cart(id).custom).filter(([k,v])=>v.q>0).map(([k,v])=>({id:k,name:v.name,price:v.price,q:v.q,custom:true}))];
+const hiddenPresets = ()=> S.config.main?.hidden || [];
+
+/* ============ 畫面 ============ */
+const TABS=[["order","點餐"],["kitchen","內場"],["floor","桌況・結帳"],["close","日結"],["books","記帳"]];
+const pendingOrders = ()=> S.orders.filter(o=>o.status==="pending").sort((a,b)=>a.at<b.at?-1:1);
+function drawTabs(){
+  $("#tabs").innerHTML=TABS.map(([k,l])=>`<button role="tab" data-tab="${k}" aria-selected="${S.tab===k}">${l}${k==="kitchen"&&pendingOrders().length?`<span class="pip">${pendingOrders().length}</span>`:""}</button>`).join("");
+}
+function setConn(mode,text){ const c=$("#conn"); c.className="conn "+mode; c.textContent=text; }
+
+function render(){
+  if(drag.on) return;
+  $("#app").classList.toggle("ordview",S.tab==="order");   // 正在拖桌子時先不重畫,放開後再畫
+  drawTabs();
+  if(!TABS.some(([k])=>k===S.tab)) S.tab="order";
+  const v={order:vOrder,kitchen:vKitchen,floor:vFloor,close:vClose,books:vBooks}[S.tab];
+  // 別人的更新進來會重畫整頁:先記住正在填的欄位,重畫後放回去,不打斷輸入
+  const keep={}; document.querySelectorAll("#app input[id],#app select[id]").forEach(el=>keep[el.id]=el.value);
+  const act=document.activeElement, actId=act&&act.id&&/^(INPUT|TEXTAREA|SELECT)$/.test(act.tagName)?act.id:null;
+  const caret=actId&&act.type!=="number"&&act.tagName!=="SELECT"?act.selectionStart:null;
+  const keepY=window.scrollY; $("#app").innerHTML=(store.mode==="local"?`<div class="banner">單機模式:資料只存在這台裝置,其他手機看不到。要多台同步,請在店裡電腦打開「鳥璇點餐系統.exe」,手機用它畫面上的網址連線。</div>`:"")+v();
+  window.scrollTo(0,keepY);
+  Object.entries(keep).forEach(([id,v])=>{ const el=document.getElementById(id); if(el) el.value=v; });
+  if(actId){ const el=document.getElementById(actId); if(el){ el.focus(); if(caret!=null) try{ el.setSelectionRange(caret,caret); }catch(e){} } }
+  const showBar = S.tab==="order" && S.sel && T(S.sel);
+  $("#mbar").hidden=!showBar;
+  if(showBar){ const L=cartLines(S.sel); $("#mbarL").textContent=`${tableLabel(S.sel)} · 本輪 ${L.reduce((s,l)=>s+l.q,0)} 件`; $("#mbarR").textContent=fmt(lineSum(L)); }
+  $(".cart")?.classList.toggle("open",S.drawer); $("#scrim").hidden=!(S.drawer&&showBar);
+}
+
+function tableChips(){
+  return `<div class="tablebar">${tableList().map(t=>{ const d=T(t.id), into=mergedInto(t.id);
+    return `<button class="tchip ${d||into?"dining":""}" data-sel="${into||t.id}" aria-pressed="${S.sel===t.id||(!!into&&S.sel===into)}"><b>${esc(t.label)}</b><small>${d?`${d.people} 位 · ${hhmm(d.openedAt)}`:into?`併入 ${esc(baseLabel(into))}`:"空桌"}</small></button>`; }).join("")}</div>`;
+}
+function stepper(act,id,q,min=0){
+  return `<span class="step"><button data-${act}="-" data-id="${id}" ${q<=min?"disabled":""} aria-label="減少">−</button><output>${q}</output><button data-${act}="+" data-id="${id}" aria-label="增加">+</button></span>`;
+}
+
+/* ---- 點餐 ---- */
+function vOrder(){
+  if(S.sel&&mergedInto(S.sel)) S.sel=mergedInto(S.sel);
+  let h=`<h2 class="sec">選桌</h2>`+tableChips();
+  if(!S.sel) return h+`<div class="empty">先點上面的桌號。空桌會先請你輸入人數開桌。</div>`;
+  const t=T(S.sel);
+  if(!t){
+    const n=S.openPeople||1;
+    return h+`<div class="opencard"><h3>${esc(tableLabel(S.sel))} 開桌</h3>
+      <span>人數</span>${stepper("ppl","open",n,1)}
+      <button class="btn primary" data-do="open" style="margin-left:auto">開桌並點餐</button></div>`;
+  }
+  const so=soldout(), c=cart(S.sel), L=cartLines(S.sel), b=tableBill(S.sel);
+  const menu=`<nav class="cats">${MENU.map(m=>`<a href="#${m.id}">${m.name}</a>`).join("")}<a href="#hidden">隱藏菜單</a></nav>`+MENU.map(m=>`
+    <section class="cat" id="${m.id}"><h2>${m.name}<small>${m.en}</small></h2><ul class="items">${m.items.map(([id])=>{
+      const it=ITEM[id], q=c.items[id]||0, out=so.has(id);
+      return `<li class="item ${q?"has":""} ${out?"out":""}"><div><div class="nm">${it.name}</div><div class="jp">${it.jp}</div></div>
+        <div class="pr">${it.price}</div><div class="ctl">${out?"":(q?stepper("qty",id,q):`<button class="add" data-qty="+" data-id="${id}">加入</button>`)}</div></li>`;}).join("")}</ul></section>`).join("")+`
+    <section class="cat" id="hidden"><h2>隱藏菜單<small>自己輸入品名和價格</small></h2>
+      <div class="chips" style="margin-top:10px">
+        <button class="add" data-hidden="" style="border-style:dashed">+ 自訂品項</button>
+        ${hiddenPresets().map((h,i)=>`<button class="add" data-hidden="${i}">${esc(h.name)} <span class="num" style="font-weight:500">${h.price||"時價"}</span></button>`).join("")}
+      </div>
+      <p class="muted" style="font-size:12px;margin:6px 0 0">常用的隱藏品項可以在「桌況・結帳 → 設定」先存起來,點了一樣可以改名稱和價格。</p></section>`;
+  const round=lineSum(L), after=b.food+round, met=after>=b.min;
+  const cartHtml=`<aside class="panel cart">
+    <div class="ph"><h3>${esc(tableLabel(S.sel))} 本輪</h3><span class="muted">第 ${sessionOrders(S.sel).length+1} 輪</span></div>
+    <div class="row" style="padding:8px 16px;border-bottom:1px solid var(--line)"><span>人數</span>${stepper("tppl",S.sel,t.people,1)}</div>
+    <div class="pb">${L.length?L.map(l=>l.custom
+      ? `<div class="line"><span>${esc(l.name)} <small class="muted">隱藏 · ${fmt(l.price)}</small></span><span class="step"><button data-cq="-" data-key="${esc(l.id)}" aria-label="減少">−</button><output>${l.q}</output><button data-cq="+" data-key="${esc(l.id)}" aria-label="增加">+</button></span><span class="num">${fmt(l.price*l.q)}</span></div>`
+      : `<div class="line"><span>${l.name}</span><span class="q num">× ${l.q}</span><span class="num">${fmt(l.price*l.q)}</span></div>`).join(""):`<div class="empty">從菜單加入品項</div>`}</div>
+    <div class="pf">
+      <textarea id="note" placeholder="備註,例如:鶏皮烤脆、醬汁少">${esc(c.note)}</textarea>
+      <div class="row"><span>本輪</span><span class="num">${fmt(round)}</span></div>
+      <div class="row"><span>已送出</span><span class="num">${fmt(b.food)}</span></div>
+      <button class="btn primary" data-do="send" ${L.length?"":"disabled"}>送出</button>
+      ${!L.length&&!sessionOrders(S.sel).some(o=>o.lines.some(l=>l.q>0))?`<button class="btn small" data-do="cancelOpen">開錯桌了?取消開桌</button>`:""}
+    </div></aside>`;
+  return h+`<div class="order"><main>${menu}</main>${cartHtml}</div>`;
+}
+
+
+/* ---- 內場 ---- */
+function vKitchen(){
+  const P=pendingOrders(), now=Date.now();
+  const cards=P.map(o=>{ const m=Math.floor((now-new Date(o.at))/60000);
+    const live=o.lines.map((l,i)=>({...l,i})).filter(l=>l.q>0), gone=o.lines.filter(l=>l.q<=0&&l.v);
+    const left=live.reduce((a,l)=>a+l.q-Math.min(l.done||0,l.q),0);
+    return `<article class="ticket ${m>=20?"late":m>=10?"mid":""}">
+      <div class="th"><b>${esc(o.tableLabel)}</b><span class="age">${hhmm(o.at)} · ${m} 分</span></div>
+      <div class="sub">第 ${o.round} 輪 · 還有 ${left} 份${o.guest?` · <span class="gtag">客人自點</span>`:""}</div>
+      <ul>${live.map(l=>{ const dn=Math.min(l.done||0,l.q), st=dn>=l.q?"done":dn>0?"part":"";
+        return `<li><button class="it ${st}" data-mark="${o.id}" data-i="${l.i}" aria-label="${esc(l.name)} 已做 ${dn} 份,共 ${l.q} 份"><span>${esc(l.name)}${l.v?` <small style="color:var(--bad)">退${l.v}</small>`:""}</span><span class="cnt">${l.q>1?`${dn}/${l.q}`:dn?"✓":"× 1"}</span></button></li>`; }).join("")}
+        ${gone.map(l=>`<li class="voided"><span>${esc(l.name)}</span><span>退掉</span></li>`).join("")}</ul>
+      ${o.note?`<div class="nt">${esc(o.note)}</div>`:""}
+      <button class="btn ok" data-alldone="${o.id}">整張完成</button></article>`; }).join("");
+  const R=S.orders.filter(o=>o.status==="done"&&o.doneAt&&!o.voidedAt).sort((a,b)=>a.doneAt<b.doneAt?1:-1).slice(0,8);
+  return `<div class="kds-bar"><h2 class="sec" style="margin:0">待做 ${P.length} 張</h2>
+      <button class="btn small" data-do="sound">${S.sound?"提示音:開":"提示音:關(點一下打開)"}</button></div>
+    <p class="muted" style="margin:0 0 12px;font-size:13px">點品項就劃掉;一個品項有好幾份時,每點一次劃一份。點錯再點一次已劃完的品項會清掉重來。全部劃完,這張單自動完成。</p>`+
+    (P.length?`<div class="kds">${cards}</div>`:`<div class="empty">目前沒有待做的單</div>`)+
+    (R.length?`<div class="recent"><h2 class="sec">剛完成</h2>${R.map(o=>`<div class="row"><span>${esc(o.tableLabel)} 第 ${o.round} 輪 · ${hhmm(o.doneAt)} 完成 <span class="muted">${o.lines.filter(l=>l.q>0).map(l=>esc(l.name)+"×"+l.q).join("、")}</span></span><button class="x" data-undone="${o.id}">復原</button></div>`).join("")}</div>`:"");
+}
+
+/* ---- 桌況・結帳 ---- */
+function vFloor(){
+  if(S.bill&&mergedInto(S.bill)) S.bill=mergedInto(S.bill);
+  const cards=tableList().map(t=>{ const d=T(t.id), into=mergedInto(t.id), b=d&&tableBill(t.id);
+    return `<button class="tcard ${d||into?"dining":""}" data-tid="${t.id}" data-bill="${into||t.id}" aria-pressed="${S.bill===t.id||(!!into&&S.bill===into)}">
+      <span class="id">${esc(t.label)}<small class="muted" style="font-size:12px">${d?d.people+" 位":""}</small></span>
+      <span class="st">${d?(d.merged?.length?"併桌 · ":"用餐中 · ")+hhmm(d.openedAt):into?`併入 ${esc(baseLabel(into))}`:"空桌"}</span>
+      ${d?`<span class="amt">${fmt(b.due)} 元</span>`:""}</button>`; }).join("");
+  let h=`<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap"><h2 class="sec">桌況 <small class="muted" style="font-family:var(--sans);font-size:12px;font-weight:400">用滑鼠把一桌拖到另一桌上,就能併桌或換桌</small></h2><button class="btn small" data-do="editTables">設定</button></div><div class="floor">${cards}</div>`;
+  const id=S.bill, t=id&&T(id);
+  if(!t) return h+(id?`<div class="empty">這桌目前是空桌</div>`:"");
+  const b=tableBill(id), O=sessionOrders(id);
+  const rounds=O.map((o,ri)=>{ const live=o.lines.some(l=>l.q>0);
+    return `<div class="round" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span>第 ${ri+1} 輪 · ${hhmm(o.at)}${o.guest?` <span class="gtag">客人自點</span>`:""}${!live?" · 已全退":o.status==="pending"?" · 製作中":" · 已出餐"}</span>${live?`<button class="x" data-voidall="${o.id}">整輪退</button>`:""}</div>`+
+    o.lines.map((l,i)=>`<div class="line ${l.q?"":"void"}"><span>${esc(l.name)}${l.v?` <small style="color:var(--bad);text-decoration:none">退 ${l.v}</small>`:""}</span><span class="q num">× ${l.q}</span><span><span class="num">${fmt(l.price*l.q)}</span> ${l.q?`<button class="x" data-void="${o.id}" data-i="${i}" title="退一份">退</button>`:""}</span></div>`).join(""); }).join("");
+  return h+`<div class="billgrid">
+    <div class="panel"><div class="ph"><h3>${esc(tableLabel(id))} 明細</h3><span class="muted">${t.people} 位 · ${hhmm(t.openedAt)} 開桌</span></div>
+      <div class="pb">${rounds||`<div class="empty">還沒點餐</div>`}</div>
+      <div class="pf"><div class="row"><span>人數</span>${stepper("tppl",id,t.people,1)}</div>
+        <div class="row"><span>自備酒水(每瓶 ${CORKAGE})</span>${stepper("cork",id,t.cork||0)}</div>
+        <div class="btns"><button class="btn small" data-do="moveTable">換桌</button><button class="btn small" data-do="mergeTable">併桌</button></div>
+        ${(t.merged||[]).map(m=>`<div class="row"><span class="muted">已併入 ${esc(baseLabel(m))}${t.mergeLog?.[m]?"(原本有點餐)":"(空桌併入)"}</span><button class="btn small" data-unmerge="${m}">拆桌</button></div>`).join("")}
+        <button class="btn small" data-do="cancelTable" ${O.some(o=>o.lines.some(l=>l.q))?"disabled":""}>取消開桌(沒點餐才能取消)</button></div></div>
+    <div class="panel"><div class="ph"><h3>結帳</h3></div><div class="pf" style="border-top:0">
+      <div class="row"><span>餐點</span><span class="num">${fmt(b.food)}</span></div>
+      ${b.cork?`<div class="row"><span>開瓶費</span><span class="num">${fmt(b.cork)}</span></div>`:""}
+      <div class="row big"><span>應收</span><span><span class="num">${fmt(b.due)}</span> 元</span></div>
+      <div class="row muted"><span>每人約</span><span class="num">${fmt(Math.ceil(b.due/t.people))}</span></div>
+      <div class="pays">${METHODS.map(([k,l])=>`<button data-method="${k}" aria-pressed="${S.method===k}">${l}</button>`).join("")}</div>
+      <button class="btn primary" data-do="pay">收款 ${fmt(b.due)} 元並清桌</button>
+      <button class="btn small" data-do="printBill">列印明細(給客人對帳)</button></div></div></div>`;
+}
+
+/* ---- 日結 ---- */
+function cashOf(list){ return list.filter(s=>s.method==="cash").reduce((a,s)=>a+s.due,0); }
+function drawerOut(){ return S.expenses.filter(e=>e.src==="drawer").reduce((a,e)=>a+e.amount,0); }
+function vClose(){
+  const day=bizDay(), list=S.settles.slice().sort((a,b)=>a.at<b.at?-1:1);   // 所有還沒關帳的結帳
+  const older=[...new Set(list.map(s=>s.day).filter(d=>d!==day))];
+  const rev=list.reduce((s,x)=>s+x.due,0), cov=list.reduce((s,x)=>s+x.people,0);
+  const bym=Object.fromEntries(METHODS.map(([k,l])=>[k,{l,n:0,a:0}])); list.forEach(s=>{ const m=bym[s.method]; if(m){m.n++;m.a+=s.due;} });
+  const items={}; list.forEach(s=>s.lines.forEach(l=>{ items[l.name]=(items[l.name]||0)+l.q; }));
+  const rank=Object.entries(items).sort((a,b)=>b[1]-a[1]), top=rank[0]?.[1]||1;
+  const open=tableList().filter(t=>T(t.id)).length, sh=S.shift, out=drawerOut();
+  const shiftPanel="";   // 店家不用零用金,不開帳
+  let h=shiftPanel+`<h2 class="sec">營業日 ${day}${list.length?` · 未關帳 ${list.length} 筆`:""}</h2>
+  ${older.length?`<div class="banner">有 ${older.join("、")} 沒關帳的結帳也列在這裡,關帳時會各自歸回原本的日期。</div>`:""}
+  <div class="kpis"><div class="kpi"><div class="k">營業額</div><div class="v">${fmt(rev)}</div></div>
+    <div class="kpi"><div class="k">來客數</div><div class="v">${cov}</div></div>
+    <div class="kpi"><div class="k">客單價</div><div class="v">${cov?fmt(rev/cov):0}</div></div>
+    <div class="kpi"><div class="k">結帳桌次</div><div class="v">${list.length}</div></div></div>
+  <div class="two"><div>
+    <h2 class="sec">收款方式</h2><div class="tblwrap"><table><tr><th>方式</th><th class="r">筆數</th><th class="r">金額</th></tr>
+      ${Object.values(bym).map(m=>`<tr><td>${m.l}</td><td class="r num">${m.n}</td><td class="r num">${fmt(m.a)}</td></tr>`).join("")}</table></div>
+    <h2 class="sec" style="margin-top:18px">結帳紀錄</h2><div class="tblwrap"><table><tr><th>時間</th><th>桌</th><th class="r">人數</th><th>方式</th><th class="r">金額</th><th></th></tr>
+      ${list.map(s=>`<tr><td class="num">${hhmm(s.at)}</td><td>${esc(s.tableLabel)}</td><td class="r num">${s.people}</td><td>${bym[s.method]?.l||s.method}</td><td class="r num">${fmt(s.due)}</td><td><button class="x" data-reprint="${s.id}">補印</button></td></tr>`).join("")||`<tr><td colspan="6" class="muted">還沒有結帳</td></tr>`}</table></div>
+  </div><div>
+    <h2 class="sec">品項銷量</h2><div class="tblwrap"><table><tr><th>品項</th><th class="r">份數</th><th style="width:40%"></th></tr>
+      ${rank.map(([n,q])=>`<tr><td>${n}</td><td class="r num">${q}</td><td><i class="bar" style="width:${q/top*100}%"></i></td></tr>`).join("")||`<tr><td colspan="3" class="muted">—</td></tr>`}</table></div>
+  </div></div>
+  <div class="panel" style="margin-top:20px;padding:16px;display:flex;flex-wrap:wrap;gap:12px;align-items:center">
+    <div style="flex:1;min-width:220px"><b>點鈔・關帳</b><div class="muted" style="font-size:13px">點完這班收到的現金(不含抽屜原本放的零錢)輸入金額,系統比對應收現金,再把這班的結帳和支出封存成日報。${open?`<br><span style="color:var(--bad)">還有 ${open} 桌沒結帳,結完才能關帳。</span>`:""}</div></div>
+    <button class="btn primary" data-do="close" ${open||(!list.length&&!sh&&!S.expenses.length)?"disabled":""}>點鈔・關帳</button></div>`;
+  const days=S.days.slice().sort((a,b)=>a.id<b.id?1:-1);
+  if(days.length) h+=`<h2 class="sec" style="margin-top:24px">歷史日報</h2>`+days.map(d=>`<details class="hist"><summary><span>${d.id}</span><span class="num">營業額 ${fmt(d.revenue||0)} · 支出 ${fmt(d.expenseTotal||0)} · ${d.covers||0} 位${(d.shifts||[]).some(x=>x.diff)?` · <span style="color:var(--bad)">現金有差額</span>`:""}</span></summary>
+    <div class="muted" style="font-size:13px;margin-top:8px">${METHODS.map(([k,l])=>`${l} ${fmt(d.byMethod?.[k]||0)}`).join(" · ")}</div>
+    ${(d.shifts||[]).map(x=>`<div style="font-size:13px;margin-top:6px">現金核對 ${hhmm(x.closedAt)}:${x.float?`零用金 ${fmt(x.float)} + `:""}現金收款 ${fmt(x.cashSales)}${x.drawerOut?` − 抽屜支出 ${fmt(x.drawerOut)}`:""} = 應有 ${fmt(x.expected)},實點 ${fmt(x.counted)},
+      <b style="color:${x.diff?"var(--bad)":"var(--ok)"}">${x.diff?(x.diff>0?"多 ":"短少 ")+fmt(Math.abs(x.diff)):"相符"}</b>${x.note?` · ${esc(x.note)}`:""}</div>`).join("")}
+    ${(d.expenses||[]).length?`<div style="font-size:13px;margin-top:6px">支出:${d.expenses.map(e=>`${esc(e.cat)} ${fmt(e.amount)}${e.note?`(${esc(e.note)})`:""}`).join("、")}</div>`:""}
+    <div style="font-size:13px;margin-top:6px">${(d.items||[]).slice(0,10).map(([n,q])=>`${esc(n)} ${q}`).join("、")}</div></details>`).join("");
+  return h;
+}
+
+/* ---- 記帳 ---- */
+function vBooks(){
+  const E=S.expenses.slice().sort((a,b)=>a.at<b.at?1:-1), tot=E.reduce((a,e)=>a+e.amount,0);
+  const month=bizDay().slice(0,7), days=S.days.filter(d=>d.id.startsWith(month)).sort((a,b)=>a.id<b.id?-1:1);
+  const mRev=days.reduce((a,d)=>a+(d.revenue||0),0)+S.settles.reduce((a,x)=>a+x.due,0);
+  const mExp=days.reduce((a,d)=>a+(d.expenseTotal||0),0)+tot;
+  const byCat={}; days.forEach(d=>(d.expenses||[]).forEach(e=>byCat[e.cat]=(byCat[e.cat]||0)+e.amount)); E.forEach(e=>byCat[e.cat]=(byCat[e.cat]||0)+e.amount);
+  const cats=Object.entries(byCat).sort((a,b)=>b[1]-a[1]), topC=cats[0]?.[1]||1;
+  return `<div class="panel" style="padding:16px;margin-bottom:18px;display:grid;gap:10px">
+      <b>記一筆支出</b>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+        <select id="expCat" style="padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--ground)">${EXP_CATS.map(c=>`<option>${c}</option>`).join("")}</select>
+        <input id="expAmt" type="number" inputmode="numeric" min="1" placeholder="金額" style="width:110px;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--ground)">
+        <input id="expNote" placeholder="說明,例:雞腿肉 5 公斤、備長炭一箱" style="flex:1;min-width:180px;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--ground)">
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+        <span class="muted" style="font-size:13px">錢從哪裡出</span>
+        <div class="pays" style="grid-template-columns:repeat(2,auto)">${EXP_SRC.map(([k,l])=>`<button data-expsrc="${k}" aria-pressed="${S.expSrc===k}" style="padding:0 12px">${l}</button>`).join("")}</div>
+        <button class="btn primary" data-do="addExp" style="margin-left:auto">記下來</button>
+      </div>
+      <div class="muted" style="font-size:12px">從收銀機拿現金付的,關帳點鈔時會自動從應有現金扣掉。</div></div>
+    <h2 class="sec">本班支出 · <span class="num">${fmt(tot)}</span> 元</h2>
+    <div class="tblwrap"><table><tr><th>時間</th><th>分類</th><th>說明</th><th>付款</th><th class="r">金額</th><th></th></tr>
+      ${E.map(e=>`<tr><td class="num">${hhmm(e.at)}</td><td>${esc(e.cat)}</td><td style="white-space:normal">${esc(e.note)}</td><td>${e.src==="drawer"?"收銀機":"其他"}</td><td class="r num">${fmt(e.amount)}</td><td><button class="x" data-delexp="${e.id}">刪除</button></td></tr>`).join("")||`<tr><td colspan="6" class="muted">這班還沒有支出</td></tr>`}</table></div>
+    <h2 class="sec" style="margin-top:24px">${month} 月累計</h2>
+    <div class="kpis"><div class="kpi"><div class="k">營業額</div><div class="v">${fmt(mRev)}</div></div>
+      <div class="kpi"><div class="k">支出</div><div class="v">${fmt(mExp)}</div></div>
+      <div class="kpi"><div class="k">收支結餘</div><div class="v" style="color:${mRev-mExp<0?"var(--bad)":"var(--ok)"}">${fmt(mRev-mExp)}</div></div>
+      <div class="kpi"><div class="k">食材佔營業額</div><div class="v">${mRev?Math.round((byCat["食材"]||0)/mRev*100):0}%</div></div></div>
+    <div class="two"><div><h2 class="sec">支出分類</h2><div class="tblwrap"><table><tr><th>分類</th><th class="r">金額</th><th style="width:40%"></th></tr>
+      ${cats.map(([c,a])=>`<tr><td>${esc(c)}</td><td class="r num">${fmt(a)}</td><td><i class="bar" style="width:${a/topC*100}%"></i></td></tr>`).join("")||`<tr><td colspan="3" class="muted">—</td></tr>`}</table></div></div>
+    <div><h2 class="sec">每日收支</h2><div class="tblwrap"><table><tr><th>日期</th><th class="r">營業額</th><th class="r">支出</th><th class="r">結餘</th></tr>
+      ${days.map(d=>{ const n=(d.revenue||0)-(d.expenseTotal||0); return `<tr><td>${d.id.slice(5)}</td><td class="r num">${fmt(d.revenue||0)}</td><td class="r num">${fmt(d.expenseTotal||0)}</td><td class="r num" style="color:${n<0?"var(--bad)":"inherit"}">${fmt(n)}</td></tr>`; }).join("")||`<tr><td colspan="4" class="muted">本月還沒有關帳紀錄</td></tr>`}</table></div></div></div>
+    <p class="muted" style="font-size:12px">收支結餘是營業額減掉記下來的支出,不是報稅用的損益;沒記的支出(例如月底才付的帳單)不會算進來。</p>`;
+}
+
+/* ============ 換桌・併桌 ============ */
+// 訂單是跟著「這一次開桌(session)」走的,所以換桌只要把桌子資料搬過去;
+// 單上的桌名跟著改,明細才對得上。
+async function relabelPending(session,tableId,label){
+  for(const o of S.orders.filter(o=>o.session===session))
+    await store.patch("orders",o.id,{table:tableId,tableLabel:label});
+}
+async function moveTable(from,to){
+  const {id:_old,...t}=T(from);   // 不要把舊桌號一起複製過去
+  await store.put("tables",to,t);
+  for(const m of t.merged||[]) await store.put("tables",m,{status:"merged",into:to});
+  await store.put("tables",from,{status:"free"});
+  if(carts[from]){ carts[to]=carts[from]; delete carts[from]; saveCarts(); }
+  await relabelPending(t.session,to,[baseLabel(to),...(t.merged||[]).map(baseLabel)].join("+"));
+}
+async function mergeTables(main,other){
+  const t=T(main), o=T(other);
+  const merged=[...new Set([...(t.merged||[]),other,...((o&&o.merged)||[])])];
+  const label=[baseLabel(main),...merged.map(baseLabel)].join("+");
+  const log={...(t.mergeLog||{})};
+  if(o) log[other]={session:o.session,people:o.people,cork:o.cork||0,openedAt:o.openedAt,merged:o.merged||[],
+    mergeLog:o.mergeLog||null,orders:S.orders.filter(x=>x.session===o.session).map(x=>x.id)};
+  await store.patch("tables",main,{merged,mergeLog:log,
+    people:t.people+(o?o.people:0), cork:(t.cork||0)+((o&&o.cork)||0)});
+  if(o){
+    for(const x of S.orders.filter(x=>x.session===o.session))
+      await store.patch("orders",x.id,{session:t.session,table:main,tableLabel:label});
+    for(const m of o.merged||[]) await store.put("tables",m,{status:"merged",into:main});
+    if(carts[other]){ const c=cart(main), oc=cart(other);   // 還沒送出的暫存點單也併過來
+      Object.entries(oc.items).forEach(([k,q])=>c.items[k]=(c.items[k]||0)+q);
+      Object.entries(oc.custom).forEach(([k,v])=>{ c.custom[k] ||= {...v,q:0}; c.custom[k].q+=v.q; });
+      delete carts[other]; saveCarts(); }
+  }
+  await store.put("tables",other,{status:"merged",into:main});
+  await relabelPending(t.session,main,label);
+}
+// 拆桌:原本有點餐的桌子,把它的人數、開瓶費、訂單還回去;空桌併入的直接放回空桌。
+// 併桌之後才點的單無法分辨是誰的,會留在主桌。
+async function splitTable(main,other){
+  const t=T(main), rec=t.mergeLog?.[other], log={...(t.mergeLog||{})}; delete log[other];
+  const back=rec?[other,...(rec.merged||[])]:[other];
+  const merged=(t.merged||[]).filter(x=>!back.includes(x));
+  const label=[baseLabel(main),...merged.map(baseLabel)].join("+");
+  await store.patch("tables",main,{merged,mergeLog:log,
+    people:Math.max(1,t.people-(rec?rec.people:0)), cork:Math.max(0,(t.cork||0)-(rec?rec.cork:0))});
+  if(!rec){ await store.put("tables",other,{status:"free"}); return; }
+  const otherLabel=[baseLabel(other),...(rec.merged||[]).map(baseLabel)].join("+");
+  await store.put("tables",other,{status:"dining",people:rec.people,cork:rec.cork,session:rec.session,openedAt:rec.openedAt,
+    merged:rec.merged||[],...(rec.mergeLog?{mergeLog:rec.mergeLog}:{})});
+  for(const m of rec.merged||[]) await store.put("tables",m,{status:"merged",into:other});
+  for(const x of S.orders.filter(x=>rec.orders.includes(x.id)))
+    await store.patch("orders",x.id,{session:rec.session,table:other,tableLabel:otherLabel});
+  await relabelPending(t.session,main,label);
+}
+async function freeTable(id){
+  const t=T(id);
+  for(const m of (t&&t.merged)||[]) await store.put("tables",m,{status:"free"});
+  await store.put("tables",id,{status:"free"});
+}
+
+/* ============ 列印明細 ============ */
+const paperWidth = ()=> lsGet("nx-paper","80");   // 各台電腦接的印表機不同,紙寬記在這台
+function receiptHtml(r){
+  const d=new Date(r.at||Date.now()), pad=n=>String(n).padStart(2,"0");
+  const when=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const corkN=Math.round((r.cork||0)/CORKAGE), m=METHODS.find(x=>x[0]===r.method);
+  return `<div style="width:${paperWidth()==="58"?"48mm":"72mm"}">
+    <div class="rc-shop">鳥璇</div><div class="rc-title">消費明細</div>
+    <div class="rc-row"><span>桌號 ${esc(r.tableLabel)}</span><span>${r.people} 位</span></div>
+    <div>${when}</div>
+    <div class="rc-hr"></div>
+    <table>${r.lines.filter(l=>l.q>0).map(l=>`<tr><td>${esc(l.name)}</td><td class="q">${l.q}</td><td class="a">${l.price?fmt(l.price*l.q):"招待"}</td></tr>`).join("")}</table>
+    <div class="rc-hr"></div>
+    <div class="rc-row"><span>餐點小計</span><span>${fmt(r.food)}</span></div>
+    ${corkN?`<div class="rc-row"><span>開瓶費 ${corkN} 瓶</span><span>${fmt(r.cork)}</span></div>`:""}
+    <div class="rc-hr2"></div>
+    <div class="rc-row rc-total"><span>合計</span><span>${fmt(r.due)} 元</span></div>
+    ${r.paid&&m?`<div class="rc-row"><span>收款方式</span><span>${m[1]}</span></div>`:`<div>(尚未結帳)</div>`}
+    <div class="rc-hr"></div>
+    <div class="rc-foot">本單為消費明細,非統一發票<br>謝謝光臨</div></div>`;
+}
+function printReceipt(r){
+  if(store.mode==="shared"){ toast("雲端版不能列印,請用店內電腦的「鳥璇點餐系統」列印"); return; }
+  $("#print").innerHTML=receiptHtml(r);
+  setTimeout(()=>window.print(),50);   // 等明細排好再叫出列印視窗
+}
+function billReceipt(id,paid,method){
+  const t=T(id), b=tableBill(id);
+  return {tableLabel:tableLabel(id),people:t.people,lines:b.lines,food:b.food,shortfall:b.shortfall,cork:b.cork,due:b.due,method,paid,at:new Date().toISOString()};
+}
+
+/* ============ 動作 ============ */
+function toast(m){ const el=$("#toast"); el.textContent=m; el.hidden=false; clearTimeout(toast.t); toast.t=setTimeout(()=>el.hidden=true,2400); }
+function modal(html){ $("#sheet").innerHTML=html; $("#overlay").hidden=false; }
+function closeModal(){ $("#overlay").hidden=true; }
+async function safe(fn,okMsg){ try{ await fn(); if(okMsg) toast(okMsg); } catch(e){ console.error(e); toast(e.code==="quota_exceeded"?"資料庫已滿,請先到日結關帳清掉舊單":"沒寫入成功,請再按一次"); } }
+
+document.addEventListener("click",async e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  const d=b.dataset;
+  if(d.tab){ S.tab=d.tab; lsSet("nx-tab",S.tab); S.drawer=false; render(); return; }
+  if(d.sel){ S.sel=d.sel; S.openPeople=1; render(); return; }
+  if(d.ppl){ S.openPeople=Math.max(1,Math.min(30,(S.openPeople||1)+(d.ppl==="+"?1:-1))); render(); return; }
+  if(d.cq){ const c=cart(S.sel), v=c.custom[d.key]; if(v){ v.q+=d.cq==="+"?1:-1; if(v.q<=0) delete c.custom[d.key]; saveCarts(); render(); } return; }
+  if(d.hidden!==undefined){ const pre=d.hidden===""?null:hiddenPresets()[+d.hidden];
+    modal(`<h3>隱藏菜單</h3>
+      <label class="row" style="font-size:15px">品名 <input id="hName" value="${esc(pre?.name||"")}" placeholder="輸入品名" style="flex:1;max-width:240px;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--ground)"></label>
+      <label class="row" style="font-size:15px">單價 <input id="hPrice" type="number" inputmode="numeric" min="0" value="${pre?.price??""}" placeholder="元" style="width:120px;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--ground)"></label>
+      <label class="row" style="font-size:15px">數量 <input id="hQty" type="number" inputmode="numeric" min="1" value="1" style="width:80px;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--ground)"></label>
+      <p class="muted" style="margin:0;font-size:12px">單價填 0 = 招待,會照樣列在明細上。</p>
+      <div class="btns"><button class="btn" data-close>取消</button><button class="btn primary" id="okHidden">加入本輪</button></div>`);
+    (pre?$("#hPrice"):$("#hName")).focus();
+    $("#okHidden").onclick=()=>{ const name=$("#hName").value.trim(), price=Math.round(Number($("#hPrice").value)), q=Math.max(1,Math.round(Number($("#hQty").value)||1));
+      if(!name){ toast("請輸入品名"); return; }
+      if($("#hPrice").value===""||!(price>=0)){ toast("請輸入單價(招待填 0)"); return; }
+      const c=cart(S.sel), key="x:"+name+"@"+price; c.custom[key] ||= {name,price,q:0}; c.custom[key].q+=q;
+      saveCarts(); closeModal(); render(); toast(`已加入 ${name} × ${q}`); };
+    return; }
+  if(d.qty){ const c=cart(S.sel); c.items[d.id]=Math.max(0,(c.items[d.id]||0)+(d.qty==="+"?1:-1)); saveCarts(); render(); return; }
+  if(d.bill){ S.bill=d.bill; render(); return; }
+  if(d.unmerge){ const id=S.bill, t=T(id), m=d.unmerge; if(!t) return; const rec=t.mergeLog?.[m];
+    modal(`<h3>把 ${esc(baseLabel(m))} 拆出來?</h3>
+      <p class="muted" style="margin:0">${rec
+        ? `${esc(baseLabel(m))} 會恢復成原本的樣子:${rec.people} 位、它自己點的 ${rec.orders.length} 輪單${rec.cork?`、開瓶 ${rec.cork} 瓶`:""}都還回去,${esc(baseLabel(id))} 扣回對應人數。併桌之後才點的單會留在 ${esc(baseLabel(id))}。`
+        : `${esc(baseLabel(m))} 是空桌併進來的,拆開後變回空桌。`}</p>
+      <div class="btns"><button class="btn" data-close>取消</button><button class="btn primary" id="okSplit">拆桌</button></div>`);
+    $("#okSplit").onclick=()=>{ closeModal(); safe(()=>splitTable(id,m),`${baseLabel(m)} 已拆桌`); }; return; }
+  if(d.method){ S.method=d.method; render(); return; }
+  if(d.reprint){ const x=S.settles.find(y=>y.id===d.reprint); if(x) printReceipt({...x,paid:true}); return; }
+  if(d.expsrc){ S.expSrc=d.expsrc; document.querySelectorAll("[data-expsrc]").forEach(x=>x.setAttribute("aria-pressed",x.dataset.expsrc===d.expsrc)); return; }
+  if(d.delexp){ const e=S.expenses.find(x=>x.id===d.delexp); if(!e) return;
+    modal(`<h3>刪除這筆支出?</h3><p class="muted" style="margin:0">${esc(e.cat)} ${fmt(e.amount)} 元${e.note?" · "+esc(e.note):""}</p><div class="btns"><button class="btn" data-close>保留</button><button class="btn primary" id="okDelExp">刪除</button></div>`);
+    $("#okDelExp").onclick=()=>{ closeModal(); safe(()=>store.del("expenses",e.id),"已刪除"); }; return; }
+  if(d.tppl){ const t=T(d.id); await safe(()=>store.patch("tables",d.id,{people:Math.max(1,t.people+(d.tppl==="+"?1:-1))})); return; }
+  if(d.cork){ const t=T(d.id); await safe(()=>store.patch("tables",d.id,{cork:Math.max(0,(t.cork||0)+(d.cork==="+"?1:-1))})); return; }
+  if(d.mark){ const o=S.orders.find(x=>x.id===d.mark); if(!o) return;
+    const lines=o.lines.map((l,i)=>{ if(i!=+d.i) return l; const dn=l.done||0; return {...l,done:dn>=l.q?0:dn+1}; });
+    const all=lines.every(l=>l.q<=0||(l.done||0)>=l.q);
+    await safe(()=>store.patch("orders",o.id,{lines,...(all?{status:"done",doneAt:new Date().toISOString()}:{})}), all?`${o.tableLabel} 第 ${o.round} 輪完成`:null); return; }
+  if(d.alldone){ const o=S.orders.find(x=>x.id===d.alldone); if(!o) return;
+    await safe(()=>store.patch("orders",o.id,{lines:o.lines.map(l=>({...l,done:l.q})),status:"done",doneAt:new Date().toISOString()}),`${o.tableLabel} 第 ${o.round} 輪完成`); return; }
+  if(d.undone){ const o=S.orders.find(x=>x.id===d.undone); if(!o) return;
+    await safe(()=>store.patch("orders",o.id,{status:"pending",doneAt:null}),`${o.tableLabel} 第 ${o.round} 輪放回待做`); return; }
+  if(d.void){ const o=S.orders.find(x=>x.id===d.void); if(!o) return;
+    const lines=o.lines.map((l,i)=>i==+d.i?{...l,q:l.q-1,v:(l.v||0)+1,done:Math.min(l.done||0,l.q-1)}:l);
+    const patch={lines, ...(lines.every(l=>l.q<=0)?{status:"done",voidedAt:new Date().toISOString()}:lines.every(l=>l.q<=0||(l.done||0)>=l.q)?{status:"done",doneAt:new Date().toISOString()}:{})};
+    modal(`<h3>退一份 ${esc(o.lines[d.i].name)}?</h3><p class="muted">${esc(o.tableLabel)} 第 ${o.round} 輪。退掉的品項會劃線保留,方便事後對帳。</p>
+      <div class="btns"><button class="btn" data-close>不退</button><button class="btn primary" id="okVoid">確認退菜</button></div>`);
+    $("#okVoid").onclick=()=>{ closeModal(); safe(()=>store.patch("orders",o.id,patch),"已退菜"); }; return; }
+  if(d.voidall){ const o=S.orders.find(x=>x.id===d.voidall); if(!o) return;
+    const lines=o.lines.map(l=>({...l,q:0,v:(l.v||0)+l.q}));
+    modal(`<h3>整輪退掉?</h3><p class="muted" style="margin:0">${esc(o.tableLabel)} 第 ${o.round} 輪:${o.lines.filter(l=>l.q>0).map(l=>`${esc(l.name)}×${l.q}`).join("、")}</p>
+      <p class="muted" style="margin:0">常用在點錯桌、重複送單。退掉的品項會劃線保留。</p>
+      <div class="btns"><button class="btn" data-close>不退</button><button class="btn primary" id="okVoidAll">整輪退掉</button></div>`);
+    $("#okVoidAll").onclick=()=>{ closeModal(); safe(()=>store.patch("orders",o.id,{lines,status:"done",voidedAt:new Date().toISOString()}),"已整輪退掉"); }; return; }
+  if(d.close!==undefined){ closeModal(); return; }
+
+  switch(d.do){
+    case "open": { const n=S.openPeople||1;
+      await safe(()=>store.put("tables",S.sel,{status:"dining",people:n,cork:0,session:rid(),openedAt:new Date().toISOString()}),`${tableLabel(S.sel)} 已開桌 · ${n} 位`); break; }
+    case "send": { const id=S.sel, t=T(id), L=cartLines(id); if(!L.length) return;
+      const out=L.filter(l=>soldout().has(l.id));
+      if(out.length){ toast(`${out.map(l=>l.name).join("、")} 已售完,請先移除`); return; }
+      modal(`<h3>送出 ${esc(tableLabel(id))} 第 ${sessionOrders(id).length+1} 輪?</h3>
+        <div>${L.map(l=>`<div class="line"><span>${l.name}</span><span class="q num">× ${l.q}</span><span class="num">${fmt(l.price*l.q)}</span></div>`).join("")}</div>
+        ${cart(id).note?`<div class="warnbox">備註:${esc(cart(id).note)}</div>`:""}
+        <div class="row big"><span>本輪</span><span class="num">${fmt(lineSum(L))}</span></div>
+        <div class="btns"><button class="btn" data-close>再看看</button><button class="btn primary" id="okSend">確認送出</button></div>`);
+      $("#okSend").onclick=async()=>{ closeModal();
+        const oid=rid();
+        await safe(async()=>{ await store.put("orders",oid,{table:id,tableLabel:tableLabel(id),session:t.session,round:sessionOrders(id).length+1,
+          lines:L,note:cart(id).note||"",status:"pending",at:new Date().toISOString(),day:bizDay(),by:lsGet("nx-staff","")});
+          carts[id]={items:{},note:"",custom:{}}; saveCarts(); S.drawer=false; }, `${tableLabel(id)} 已送出`); render(); };
+      break; }
+    case "pay": { const id=S.bill, t=T(id), bl=tableBill(id); const m=METHODS.find(x=>x[0]===S.method)[1];
+      modal(`<h3>${esc(tableLabel(id))} 收款</h3><div class="row big"><span>${m}</span><span><span class="num">${fmt(bl.due)}</span> 元</span></div>
+        <p class="muted" style="margin:0">收款後這桌會清空,訂單移到日結。</p>
+        ${store.mode==="shared"?"":`<label class="row" style="justify-content:flex-start;gap:8px;font-size:14px"><input type="checkbox" id="autoPrint" ${lsGet("nx-autoprint",true)?"checked":""}> 收款後列印明細</label>`}
+        <div class="btns"><button class="btn" data-close>返回</button><button class="btn primary" id="okPay">確認已收款</button></div>`);
+      $("#okPay").onclick=async()=>{ const ap=$("#autoPrint"); if(ap) lsSet("nx-autoprint",ap.checked);
+        const receipt=ap&&ap.checked?billReceipt(id,true,S.method):null; closeModal();
+        await safe(async()=>{ await store.put("settles",rid(),{day:bizDay(),at:new Date().toISOString(),table:id,tableLabel:tableLabel(id),people:t.people,session:t.session,
+          lines:bl.lines.map(({name,price,q})=>({name,price,q})),food:bl.food,shortfall:bl.shortfall,cork:bl.cork,due:bl.due,method:S.method});
+          await freeTable(id); S.bill=null; }, `${tableLabel(id)} 收款 ${fmt(bl.due)} 元,已清桌`);
+        if(receipt) printReceipt(receipt); };
+      break; }
+    case "printBill": printReceipt(billReceipt(S.bill,false)); break;
+    case "sound": S.sound=!S.sound; lsSet("nx-sound",S.sound); if(S.sound) beep(); render(); break;
+    case "cancelTable": await safe(()=>freeTable(S.bill),"已取消開桌"); break;
+    case "cancelOpen": { const id=S.sel; await safe(()=>freeTable(id),`${tableLabel(id)} 已取消開桌`); delete carts[id]; saveCarts(); break; }
+    case "moveTable": case "mergeTable": { const id=S.bill, t=T(id), move=d.do==="moveTable";
+      const others=tableList().filter(x=>x.id!==id && !(t.merged||[]).includes(x.id) && !mergedInto(x.id));
+      const choices=move ? others.filter(x=>!T(x.id)) : others;
+      modal(`<h3>${esc(tableLabel(id))} ${move?"換到哪一桌?":"要把哪一桌併進來?"}</h3>
+        <p class="muted" style="margin:0;font-size:13px">${move
+          ? "整桌移過去:已點的單、人數、開瓶費都跟著走,原本的桌子變空桌。"
+          : "併進來的桌子會跟這桌合成一桌:點的單、人數、開瓶費全部合併,最後一起結帳。空桌也可以併(客人多、把旁邊座位拉過來坐)。"}</p>
+        <div class="tablebar">${choices.map(x=>{ const o=T(x.id);
+          return `<button class="tchip ${o?"dining":""}" data-pick="${x.id}"><b>${esc(x.label)}</b><small>${o?`用餐中 ${o.people} 位`:"空桌"}</small></button>`; }).join("")||`<span class="muted">${move?"沒有空桌":"沒有可以併的桌子"}</span>`}</div>
+        <div class="btns"><button class="btn" data-close>取消</button></div>`);
+      document.querySelectorAll("[data-pick]").forEach(b=>b.onclick=()=>{ const to=b.dataset.pick; closeModal();
+        if(move) safe(()=>moveTable(id,to),`已換到 ${baseLabel(to)}`).then(()=>{ S.bill=to; if(S.sel===id) S.sel=to; render(); });
+        else { const o=T(to);
+          if(!o) return safe(()=>mergeTables(id,to),`${baseLabel(to)} 已併入 ${baseLabel(id)}`);
+          modal(`<h3>確定併桌?</h3><p class="muted" style="margin:0">${esc(tableLabel(to))}(${o.people} 位,${fmt(tableBill(to).food)} 元)的單會全部移到 ${esc(tableLabel(id))},人數合計 ${t.people+o.people} 位,之後一起結帳。</p>
+            <div class="btns"><button class="btn" data-close>取消</button><button class="btn primary" id="okMerge">併桌</button></div>`);
+          $("#okMerge").onclick=()=>{ closeModal(); safe(()=>mergeTables(id,to),`${baseLabel(to)} 已併入 ${baseLabel(id)}`); }; } });
+      break; }
+    case "editTables": {
+      modal(`<h3>設定</h3><p class="muted" style="margin:0">一行一桌,照店內實際叫法寫。正在用餐的桌子請先結帳再刪。</p>
+        <textarea id="tblText">${esc(tableList().map(t=>t.label).join("\n"))}</textarea>
+        ${store.mode==="server"?`<div class="btns" style="margin-top:4px"><a class="btn small" href="order?t=${esc(tableList()[0]?.id||"")}" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;text-decoration:none;color:inherit">預覽客人點餐頁</a><button class="btn small" id="qrBtn">列印桌號 QR code</button></div>`:""}
+        <b style="margin-top:6px">常用隱藏品項</b><p class="muted" style="margin:0">一行一項:品名 空一格 價格。時價的品項價格可以不寫,點的時候再輸入。</p>
+        <textarea id="hiddenText" style="min-height:110px" placeholder="品名 價格">${esc(hiddenPresets().map(h=>h.name+(h.price!=null?" "+h.price:"")).join("\n"))}</textarea>
+        <label class="row"><span>這台電腦的明細紙寬</span><select id="paperSel" style="padding:6px;border:1px solid var(--line);border-radius:6px;background:var(--ground)">${["80","58"].map(w=>`<option value="${w}" ${paperWidth()===w?"selected":""}>${w}mm 熱感紙</option>`).join("")}</select></label>
+        <div class="btns"><button class="btn" data-close>取消</button><button class="btn primary" id="okTbl">儲存</button></div>`);
+      if($("#qrBtn")) $("#qrBtn").onclick=()=>{ closeModal(); showQr(); };
+      $("#okTbl").onclick=async()=>{ lsSet("nx-paper",$("#paperSel").value);
+        const old=tableList(); let n=old.reduce((m,t)=>Math.max(m,parseInt(t.id.slice(1))||0),0);
+        const labels=[...new Set($("#tblText").value.split("\n").map(s=>s.trim()).filter(Boolean))];
+        const next=labels.map(l=>old.find(t=>t.label===l)||{id:"t"+String(++n).padStart(2,"0"),label:l});
+        const busy=old.filter(t=>(T(t.id)||mergedInto(t.id))&&!next.some(x=>x.id===t.id));
+        if(busy.length){ toast(`${busy.map(t=>t.label).join("、")} 還在用餐,不能刪`); return; }
+        const hidden=$("#hiddenText").value.split("\n").map(x=>x.trim()).filter(Boolean).map(x=>{ const m=x.match(/^(.*?)\s+(\d+)$/); return m?{name:m[1].trim(),price:+m[2]}:{name:x,price:null}; });
+        closeModal(); await safe(()=>store.put("config","main",{...(S.config.main||{}),tables:next,hidden}),"設定已儲存"); };
+      break; }
+    case "addExp": {
+      const amt=Number($("#expAmt").value), cat=$("#expCat").value, note=$("#expNote").value.trim();
+      if(!(amt>0)){ toast("請輸入支出金額"); return; }
+      $("#expAmt").value=""; $("#expNote").value="";
+      await safe(()=>store.put("expenses",rid(),{cat,amount:Math.round(amt),note,src:S.expSrc,at:new Date().toISOString(),day:bizDay(),by:lsGet("nx-staff","")}),`已記 ${cat} ${fmt(amt)} 元`); break; }
+    case "close": { const list=S.settles.slice(), E=S.expenses.slice(), sh=S.shift, flt=0, cash=cashOf(list), out=drawerOut(), expect=flt+cash-out;
+      modal(`<h3>點鈔・關帳</h3>
+        <div class="row"><span>現金收款(${list.filter(s=>s.method==="cash").length} 筆)</span><span class="num">${fmt(cash)}</span></div>
+        ${out?`<div class="row"><span>− 收銀機付的支出</span><span class="num">${fmt(out)}</span></div>`:""}
+        <div class="row big"><span>應收現金</span><span class="num">${fmt(expect)}</span></div>
+        <label class="row" style="font-size:15px">實際點鈔 <input id="countIn" type="number" inputmode="numeric" min="0" placeholder="點完的金額" style="width:150px;font-size:18px;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--ground)"></label>
+        <div id="diffOut" class="row big" style="justify-content:flex-end"></div>
+        <input id="diffNote" placeholder="差額原因(選填),例:找錯錢" style="padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--ground)" hidden>
+        <p class="muted" style="margin:0;font-size:13px">封存 ${list.length} 筆結帳、${E.length} 筆支出。關帳後這班的明細只留日報彙總。</p>
+        <div class="btns"><button class="btn" data-close>還不要</button><button class="btn primary" id="okClose" disabled>確認關帳</button></div>`);
+      const cin=$("#countIn"); cin.focus();
+      cin.addEventListener("input",()=>{ const ok=cin.value!=="" && Number(cin.value)>=0, diff=Number(cin.value)-expect;
+        $("#okClose").disabled=!ok; $("#diffNote").hidden=!ok||diff===0;
+        $("#diffOut").innerHTML=!ok?"":diff===0?`<span style="color:var(--ok)">現金相符</span>`:`<span style="color:var(--bad)">${diff>0?"多":"短少"} <span class="num">${fmt(Math.abs(diff))}</span> 元</span>`; });
+      $("#okClose").onclick=async()=>{
+        const counted=Number(cin.value), note=$("#diffNote").value.trim(), now=new Date().toISOString();
+        const shiftRec={float:flt,cashSales:cash,drawerOut:out,expected:expect,counted,diff:counted-expect,note,openedAt:sh?.openedAt||now,closedAt:now,by:sh?.by||""};
+        const shiftDay=sh?.day||bizDay();
+        closeModal();
+        // 依營業日分組,各自併進該日的日報;同一天關過帳又營業時是合併,不會蓋掉
+        const groups={}; const g=day=>(groups[day] ||= {S:[],E:[]});
+        list.forEach(x=>g(x.day).S.push(x)); E.forEach(x=>g(x.day).E.push(x)); g(shiftDay);
+        await safe(async()=>{
+          for(const [day,{S:L,E:X}] of Object.entries(groups)){
+            const prev=S.days.find(x=>x.id===day)||{};
+            const items=Object.fromEntries(prev.items||[]), byMethod={...(prev.byMethod||{})};
+            L.forEach(x=>{ byMethod[x.method]=(byMethod[x.method]||0)+x.due; x.lines.forEach(l=>items[l.name]=(items[l.name]||0)+l.q); });
+            await store.put("days",day,{revenue:(prev.revenue||0)+L.reduce((a,x)=>a+x.due,0),covers:(prev.covers||0)+L.reduce((a,x)=>a+x.people,0),
+              count:(prev.count||0)+L.length,byMethod,items:Object.entries(items).sort((a,b)=>b[1]-a[1]),closedAt:now,
+              expenseTotal:(prev.expenseTotal||0)+X.reduce((a,e)=>a+e.amount,0),
+              expenses:[...(prev.expenses||[]),...X.map(({cat,amount,note,src,at})=>({cat,amount,note,src,at}))],
+              shifts:[...(prev.shifts||[]),...(day===shiftDay?[shiftRec]:[])],
+              settles:[...(prev.settles||[]),...L.map(({at,tableLabel,people,due,method})=>({at,tableLabel,people,due,method}))]});
+          }
+          const live=new Set(Object.values(S.tables).filter(t=>t.status==="dining").map(t=>t.session));
+          for(const x of list) await store.del("settles",x.id);
+          for(const x of E) await store.del("expenses",x.id);
+          for(const o of S.orders) if(!live.has(o.session)) await store.del("orders",o.id);
+          if(sh) await store.del("shift","current");
+        }, counted===expect?"已關帳,現金相符":`已關帳,現金${counted>expect?"多":"短少"} ${fmt(Math.abs(counted-expect))} 元`); };
+      break; }
+  }
+});
+document.addEventListener("input",e=>{ if(e.target.id==="note"&&S.sel){ cart(S.sel).note=e.target.value; saveCarts(); }});
+$("#overlay").addEventListener("click",e=>{ if(e.target.id==="overlay") closeModal(); });
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ closeModal(); S.drawer=false; render(); }});
+$("#mbar").onclick=()=>{ S.drawer=true; render(); };
+$("#scrim").onclick=()=>{ S.drawer=false; render(); };
+
+/* ============ 拖曳併桌 ============ */
+const drag={src:null,x:0,y:0,on:false,ghost:null,over:null,justDropped:false};
+document.addEventListener("pointerdown",e=>{
+  if(e.pointerType!=="mouse"||e.button!==0) return;
+  const card=e.target.closest(".floor .tcard"); if(!card) return;
+  Object.assign(drag,{src:card.dataset.tid,x:e.clientX,y:e.clientY,on:false});
+});
+document.addEventListener("pointermove",e=>{
+  if(!drag.src) return;
+  if(!drag.on){ if(Math.hypot(e.clientX-drag.x,e.clientY-drag.y)<8) return;
+    drag.on=true; drag.ghost=document.createElement("div"); drag.ghost.className="drag-ghost";
+    drag.ghost.textContent=tableLabel(mergedInto(drag.src)||drag.src)+" → 拖到要併的桌"; document.body.appendChild(drag.ghost);
+    document.querySelector(`.tcard[data-tid="${drag.src}"]`)?.classList.add("drag-src"); }
+  drag.ghost.style.left=e.clientX+"px"; drag.ghost.style.top=e.clientY+"px";
+  const over=document.elementFromPoint(e.clientX,e.clientY)?.closest(".floor .tcard");
+  document.querySelectorAll(".tcard.drop-ok").forEach(x=>x.classList.remove("drop-ok"));
+  drag.over=over&&over.dataset.tid!==drag.src?over.dataset.tid:null;
+  if(drag.over) over.classList.add("drop-ok");
+});
+document.addEventListener("pointerup",()=>{
+  if(!drag.src) return;
+  const {src,over,on}=drag; drag.src=null; drag.on=false; drag.ghost?.remove(); drag.ghost=null;
+  document.querySelectorAll(".drag-src,.drop-ok").forEach(x=>x.classList.remove("drag-src","drop-ok"));
+  if(!on) return;
+  drag.justDropped=true; setTimeout(()=>drag.justDropped=false,50);   // 放開時不要順便觸發點選
+  if(over) dropTable(src,over); else render();
+});
+document.addEventListener("click",e=>{ if(drag.justDropped&&e.target.closest(".floor")){ e.stopImmediatePropagation(); e.preventDefault(); } },true);
+
+function dropTable(a,b){
+  const src=mergedInto(a)||a, dst=mergedInto(b)||b;
+  if(mergedInto(a)){ toast(`${baseLabel(a)} 已經併在 ${baseLabel(src)},要移開請先拆桌`); return; }
+  if(src===dst){ toast("已經是同一桌了"); return; }
+  const s=T(src), d=T(dst);
+  if(!s&&!d){ toast("兩桌都是空桌,先開其中一桌再併"); return; }
+  if(!s){ return safe(()=>mergeTables(dst,src),`${baseLabel(src)} 已併入 ${baseLabel(dst)}`).then(()=>{ S.bill=dst; render(); }); }
+  if(!d){
+    modal(`<h3>${esc(tableLabel(src))} 拖到 ${esc(baseLabel(dst))}</h3><p class="muted" style="margin:0">${esc(baseLabel(dst))} 是空桌,要怎麼處理?</p>
+      <div class="btns"><button class="btn" id="dMove">整桌換過去</button><button class="btn primary" id="dMerge">把 ${esc(baseLabel(dst))} 併進來</button></div>
+      <button class="btn small" data-close>取消</button>`);
+    $("#dMove").onclick=()=>{ closeModal(); safe(()=>moveTable(src,dst),`已換到 ${baseLabel(dst)}`).then(()=>{ S.bill=dst; if(S.sel===src) S.sel=dst; render(); }); };
+    $("#dMerge").onclick=()=>{ closeModal(); safe(()=>mergeTables(src,dst),`${baseLabel(dst)} 已併入 ${baseLabel(src)}`).then(()=>{ S.bill=src; render(); }); };
+    return;
+  }
+  modal(`<h3>併桌?</h3><p class="muted" style="margin:0">把 ${esc(tableLabel(src))}(${s.people} 位,${fmt(tableBill(src).food)} 元)併到 ${esc(tableLabel(dst))}(${d.people} 位),合計 ${s.people+d.people} 位,之後一起結帳。併錯可以在明細按「拆桌」還原。</p>
+    <div class="btns"><button class="btn" data-close>取消</button><button class="btn primary" id="dOk">併桌</button></div>`);
+  $("#dOk").onclick=()=>{ closeModal(); safe(()=>mergeTables(dst,src),`${baseLabel(src)} 已併入 ${baseLabel(dst)}`).then(()=>{ S.bill=dst; render(); }); };
+}
+
+/* ============ 內場提示 ============ */
+let audioCtx=null;
+function beep(){ try{ audioCtx ||= new (window.AudioContext||window.webkitAudioContext)();
+  [0,0.18].forEach(t=>{ const o=audioCtx.createOscillator(), g=audioCtx.createGain(); o.frequency.value=880; o.connect(g); g.connect(audioCtx.destination);
+    g.gain.setValueAtTime(0.2,audioCtx.currentTime+t); g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+t+0.15); o.start(audioCtx.currentTime+t); o.stop(audioCtx.currentTime+t+0.16); }); }catch(e){} }
+setInterval(()=>{ if(S.tab==="kitchen" && $("#overlay").hidden && !drag.on) render(); },30000);   // 只更新等候分鐘數,不寫資料
+
+/* ============ 店員密碼 ============ */
+function askPin(msg){
+  if($("#pinIn")) return;
+  setConn("local","需要店員密碼");
+  $("#app").innerHTML=`<div class="panel" style="max-width:360px;margin:40px auto;padding:22px;display:grid;gap:12px">
+    <h2 class="sec" style="margin:0">輸入店員密碼</h2>
+    <p class="muted" style="margin:0;font-size:13px">密碼顯示在店裡電腦的黑色視窗上。每支手機只要輸入一次。<br>客人請掃桌上的 QR code 點餐。</p>
+    ${msg?`<div class="warnbox">${esc(msg)}</div>`:lsGet("nx-pin","")?`<div class="warnbox">密碼不對,請再確認一次</div>`:""}
+    <input id="pinIn" type="password" inputmode="numeric" autocomplete="off" maxlength="8" style="font-size:22px;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--ground);letter-spacing:.3em">
+    <button class="btn primary" id="pinOk">進入</button></div>`;
+  const go=()=>{ lsSet("nx-pin",$("#pinIn").value.trim()); location.reload(); };
+  $("#pinOk").onclick=go; $("#pinIn").onkeydown=e=>{ if(e.key==="Enter") go(); }; $("#pinIn").focus();
+}
+
+/* ============ 桌號 QR code ============ */
+async function showQr(){
+  let info; try{ const r=await fetch("api/info",{headers:{"X-PIN":lsGet("nx-pin","")}}); info=await r.json(); }catch(e){}
+  if(!info||!info.ips){ toast("拿不到店裡電腦的網址,請在店裡電腦上操作"); return; }
+  const ips=info.ips.length?info.ips:[location.hostname];
+  const draw=ip=>{ const base=`http://${ip}:${info.port}/order?t=`;
+    return tableList().map(t=>{ const q=qrcode(0,"M"); q.addData(base+t.id); q.make();
+      return `<div class="qrcard"><div class="qrshop">鳥璇</div><div class="qrtbl">${esc(t.label)}</div>${q.createSvgTag({cellSize:5,margin:2,scalable:true})}<div class="qrhint">掃描 QR code 點餐<br>請先連上店內 Wi-Fi</div><div class="qrurl">${esc(base+t.id)}</div></div>`; }).join(""); };
+  modal(`<h3>桌號 QR code</h3>
+    <p class="muted" style="margin:0;font-size:13px">客人用手機掃了會直接打開這一桌的點餐頁。<b>客人的手機要連店內 Wi-Fi</b>,連 4G/5G 打不開。</p>
+    <div class="warnbox">QR code 裡寫的是這台電腦的網址。電腦重開機或換網路,網址可能會變,印好的 QR 就失效了。
+      請網路廠商在路由器幫這台電腦設「固定 IP」,之後再印。</div>
+    ${ips.length>1?`<label class="row">電腦網址 <select id="qrIp" style="padding:6px;border:1px solid var(--line);border-radius:6px;background:var(--ground)">${ips.map(ip=>`<option>${ip}</option>`).join("")}</select></label>`:`<div class="row"><span>電腦網址</span><span class="num">${esc(ips[0])}:${info.port}</span></div>`}
+    <p class="muted" style="margin:0;font-size:12px">點任一張可以打開那桌的客人點餐頁看看。</p>
+    <div id="qrPrev" class="qrgrid qrprev">${draw(ips[0])}</div>
+    <div class="btns"><button class="btn" data-close>關閉</button><button class="btn primary" id="qrPrint">列印</button></div>`);
+  const cur=()=>$("#qrIp")?$("#qrIp").value:ips[0];
+  if($("#qrIp")) $("#qrIp").onchange=()=>{ $("#qrPrev").innerHTML=draw(cur()); };
+  $("#qrPrev").addEventListener("click",e=>{ const c=e.target.closest(".qrcard"); if(c) window.open(c.querySelector(".qrurl").textContent,"_blank"); });
+  $("#qrPrint").onclick=()=>{ $("#print").className="qrsheet"; $("#print").innerHTML=`<div class="qrgrid">${draw(cur())}</div>`;
+    closeModal(); setTimeout(()=>{ window.print(); $("#print").className=""; },50); };
+}
+
+/* ============ 啟動 ============ */
+function subscribeAll(){
+  store.watch("tables",docs=>{ S.tables=Object.fromEntries(docs.map(d=>[d.id,d])); render(); });
+  let seen=null;
+  store.watch("orders",docs=>{ S.orders=docs;
+    const ids=new Set(docs.filter(o=>o.status==="pending").map(o=>o.id));
+    const fresh=seen?docs.filter(o=>ids.has(o.id)&&!seen.has(o.id)):[];
+    if(fresh.length){ const g=fresh.find(o=>o.guest);
+      if(g) toast(`${g.tableLabel} 客人自己點了第 ${g.round} 輪`); else if(S.tab==="kitchen") toast("新單進來了");
+      if(S.sound&&(S.tab==="kitchen"||g)) beep(); }
+    seen=ids; render(); });
+  store.watch("settles",docs=>{ S.settles=docs; render(); });
+  store.watch("days",docs=>{ S.days=docs; render(); });
+  store.watch("shift",docs=>{ S.shift=docs.find(d=>d.id==="current")||null; render(); });
+  store.watch("expenses",docs=>{ S.expenses=docs; render(); });
+  store.watch("config",docs=>{ S.config=Object.fromEntries(docs.map(d=>[d.id,d])); render(); });
+}
+render();
+(async()=>{
+  if(location.protocol.startsWith("http") && !location.hostname.endsWith("claude.ai")){
+    try{ const r=await fetch("api/state",{cache:"no-store",headers:{"X-PIN":lsGet("nx-pin","")}});
+      if(r.status===401||r.status===429){ store.mode="server"; askPin(r.status===429?(await r.json()).error:""); return; }
+      if(r.ok){ const st=await r.json(); if(st.data){
+      store.mode="server"; setConn("shared","店內連線 · 同步中"); subscribeAll(); store._apply(st);
+      Object.entries(store.subs).forEach(([c,cb])=>cb(store._docs(st.data,c))); setTimeout(()=>store._poll(),1500); return; } } }catch(e){}
+  }
+  const db = window.claude?.use ? await window.claude.use("db") : null;
+  if(db){ store.db=db; store.mode="shared"; setConn("shared","共用 · 即時同步"); }
+  else setConn("local","單機模式");
+  subscribeAll();
+})();
+</script>
+
+</body></html>

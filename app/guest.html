@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>鳥璇 掃碼點餐</title>
+<style>
+:root{
+  --ground:#F2F0EB; --surface:#FFFFFF; --ink:#1E1B18; --muted:#6F675E; --line:#DCD7CE;
+  --tare:#7A3E12; --tare-soft:#F1E4D6; --ember:#C8421F; --ember-ink:#FFFFFF; --ok:#2F7A4B; --ok-soft:#E1F0E6; --bad:#B42318;
+  --shadow:0 10px 30px rgba(40,25,10,.14);
+  --serif:"Noto Serif TC","Songti TC","PMingLiU",serif;
+  --sans:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --mono:ui-monospace,"SFMono-Regular",Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root{
+  --ground:#151210; --surface:#201C19; --ink:#EFE9E1; --muted:#A39A8F; --line:#3A332D;
+  --tare:#E2A15E; --tare-soft:#3A2A1C; --ember:#E8643A; --ember-ink:#1A0E08; --ok:#6CC58F; --ok-soft:#1C2E22; --bad:#F07A6A;
+  --shadow:0 10px 30px rgba(0,0,0,.5);
+}}
+*{box-sizing:border-box}
+html{padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);font-size:18px;line-height:1.5;font-weight:400}
+button,input,textarea{font:inherit;color:inherit;font-weight:400}
+button{cursor:pointer}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--ember);outline-offset:2px}
+[hidden]{display:none!important}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;background:var(--ink);color:var(--ground);padding:12px 16px}
+header .shop{font-family:var(--serif);font-size:24px;letter-spacing:.14em}
+header .tbl{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-top:2px}
+header .tbl b{font-weight:400;font-size:21px}
+header .tbl span{font-size:15px;opacity:.8}
+nav{position:sticky;top:calc(env(safe-area-inset-top,0px) + 86px);z-index:9;background:var(--ground);display:flex;gap:6px;overflow-x:auto;padding:10px 16px;scrollbar-width:none;border-bottom:1px solid var(--line)}
+nav a{flex:none;text-decoration:none;color:var(--muted);font-size:16px;padding:6px 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface)}
+main{padding:0 16px 140px;max-width:640px;margin:0 auto}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-top:14px}
+.people{display:flex;justify-content:space-between;align-items:center;gap:12px}
+section{scroll-margin-top:160px}
+section h2{font-family:var(--serif);font-weight:400;font-size:24px;margin:22px 0 2px;display:flex;align-items:baseline;gap:10px}
+section h2 small{font-family:var(--sans);font-size:13px;color:var(--muted);letter-spacing:.1em}
+.item{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:10px;padding:12px 0;border-bottom:1px dashed var(--line)}
+.item .nm{font-family:var(--serif);font-size:22px;line-height:1.3}
+.item .jp{font-size:14px;color:var(--muted)}
+.item .pr{font-family:var(--mono);font-size:19px;color:var(--tare);text-align:right}
+.item .ctl{width:124px;display:flex;justify-content:flex-end}
+.item.has{background:linear-gradient(90deg,var(--tare-soft),transparent 85%)}
+.step{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:999px;background:var(--surface);overflow:hidden}
+.step button{width:44px;height:44px;border:0;background:none;font-size:22px;line-height:1}
+.step button:disabled{opacity:.3}
+.step output{min-width:32px;text-align:center;font-family:var(--mono);font-size:19px}
+.add{height:44px;padding:0 18px;font-size:18px;white-space:nowrap;border-radius:999px;border:1px solid var(--tare);background:none;color:var(--tare)}
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:20;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));background:var(--ember);color:var(--ember-ink);border:0;width:100%;display:flex;justify-content:space-between;align-items:center;font-size:19px}
+.bar:disabled{background:var(--line);color:var(--muted)}
+.btn{height:52px;border-radius:10px;border:1px solid var(--ink);background:none;font-size:18px;padding:0 16px}
+.btn.primary{background:var(--ember);border-color:var(--ember);color:var(--ember-ink)}
+.btn:disabled{opacity:.4}
+.overlay{position:fixed;inset:0;z-index:30;background:rgba(15,10,6,.55);display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--surface);width:100%;max-width:640px;max-height:88vh;overflow:auto;border-radius:16px 16px 0 0;padding:20px 16px calc(20px + env(safe-area-inset-bottom,0px));display:grid;gap:12px;box-shadow:var(--shadow)}
+.sheet h3{margin:0;font-family:var(--serif);font-weight:400;font-size:24px}
+.line{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);font-size:18px}
+.line .q{color:var(--muted)}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.total{font-size:21px}
+textarea{width:100%;min-height:60px;background:var(--ground);border:1px solid var(--line);border-radius:8px;padding:10px;resize:vertical}
+.btns{display:grid;grid-template-columns:1fr 1.4fr;gap:10px}
+.muted{color:var(--muted)}
+.msg{background:var(--tare-soft);border-radius:8px;padding:10px 12px;font-size:14px}
+.err{background:#FBE7E4;color:#7A1C12;border-radius:8px;padding:10px 12px;font-size:14px}
+.pill{font-size:14px;padding:1px 8px;border-radius:999px;border:1px solid currentColor}
+.pill.cook{color:var(--tare)}
+.pill.done{color:var(--ok)}
+.round{font-size:15px;color:var(--muted);padding-top:10px;display:flex;justify-content:space-between;gap:8px}
+.big-ok{font-size:44px;text-align:center;color:var(--ok);line-height:1}
+.empty{color:var(--muted);text-align:center;padding:50px 16px;font-size:19px}
+.toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--ground);padding:12px 18px;border-radius:8px;font-size:17px;z-index:40;max-width:calc(100% - 32px)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <div class="shop">鳥璇</div>
+  <div class="tbl"><b id="tblName">載入中…</b><span id="tblInfo"></span></div>
+</header>
+<nav id="nav" hidden></nav>
+<main id="main"><div class="empty">載入菜單中…</div></main>
+<button class="bar" id="bar" hidden disabled><span id="barL">還沒選餐點</span><span>下一步：送出點餐 ›</span></button>
+<div class="overlay" id="overlay" hidden><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmt=n=>Math.round(n).toLocaleString("zh-TW");
+const hhmm=iso=>{ const d=new Date(iso); return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"); };
+const TID=new URLSearchParams(location.search).get("t")||"";
+const KEY="nx-guest-cart-"+TID;
+function lsGet(k,f){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):f; }catch(e){ return f; } }
+function lsSet(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
+
+let CATS=[], ITEM={}, G=null, cart=lsGet(KEY,{items:{},note:"",people:1}), sending=false;
+
+function toast(m){ const el=$("#toast"); el.textContent=m; el.hidden=false; clearTimeout(toast.t); toast.t=setTimeout(()=>el.hidden=true,2600); }
+function modal(h){ $("#sheet").innerHTML=h; $("#overlay").hidden=false; }
+function closeModal(){ $("#overlay").hidden=true; }
+const lines=()=>Object.entries(cart.items).filter(([k,q])=>q>0&&ITEM[k]).map(([k,q])=>({...ITEM[k],q}));
+const sum=L=>L.reduce((a,l)=>a+l.price*l.q,0);
+const save=()=>lsSet(KEY,cart);
+
+function stepper(act,id,q,min=0){
+  return `<span class="step"><button data-${act}="-" data-id="${id}" ${q<=min?"disabled":""} aria-label="減少">−</button><output>${q}</output><button data-${act}="+" data-id="${id}" aria-label="增加">+</button></span>`;
+}
+
+function render(){
+  if(!G) return;
+  $("#tblName").textContent=`桌號 ${G.label}`;
+  const ordered=G.orders.reduce((a,o)=>a+sum(o.lines),0);
+  $("#tblInfo").textContent=G.open?`${G.people} 位 · 已點 ${G.orders.length} 輪`:"還沒開始點餐";
+  $("#nav").hidden=false;
+  $("#nav").innerHTML=(G.orders.length?`<a href="#mine">已點的餐點</a>`:"")+CATS.map(c=>`<a href="#c-${c.id}">${esc(c.name)}</a>`).join("");
+  const keepY=scrollY;
+  $("#main").innerHTML=
+    (G.open?"":`<div class="card people"><span>用餐人數</span>${stepper("ppl","p",cart.people,1)}</div>`)+
+    CATS.map(c=>`<section id="c-${c.id}"><h2>${esc(c.name)}<small>${esc(c.en)}</small></h2>${c.items.map(it=>{ const q=cart.items[it.id]||0;
+      return `<div class="item ${q?"has":""}"><div><div class="nm">${esc(it.name)}</div><div class="jp">${esc(it.jp)}</div></div><div class="pr">${it.price}</div>
+        <div class="ctl">${q?stepper("q",it.id,q):`<button class="add" data-q="+" data-id="${it.id}">加入</button>`}</div></div>`; }).join("")}</section>`).join("")+
+    (G.orders.length?`<section id="mine"><h2>已點的餐點<small>ORDERED</small></h2><div class="card">${G.orders.map(o=>`
+      <div class="round"><span>第 ${o.round} 輪 · ${hhmm(o.at)}</span><span class="pill ${o.status==="pending"?"cook":"done"}">${o.status==="pending"?"製作中":"已出餐"}</span></div>
+      ${o.lines.map(l=>`<div class="line"><span>${esc(l.name)}</span><span class="q num">× ${l.q}</span><span class="num">${fmt(l.price*l.q)}</span></div>`).join("")}`).join("")}
+      <div class="row total" style="padding-top:10px"><span>目前累計</span><span class="num">${fmt(ordered)} 元</span></div>
+      <p class="muted" style="font-size:14px;margin:6px 0 0">實際金額以結帳時店員提供的明細為準。</p></div></section>`:"")+
+    `<p class="muted" style="font-size:15px;text-align:center;margin-top:24px">需要加點其他品項、有過敏或特殊需求,請洽店員</p>`;
+  scrollTo(0,keepY);
+  const L=lines(), n=L.reduce((a,l)=>a+l.q,0);
+  $("#bar").hidden=false; $("#bar").disabled=!n;
+  $("#barL").textContent=n?`已選 ${n} 件 · ${fmt(sum(L))} 元`:"還沒選餐點";
+}
+
+document.addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b) return; const d=b.dataset;
+  if(d.q){ cart.items[d.id]=Math.max(0,(cart.items[d.id]||0)+(d.q==="+"?1:-1)); if(!cart.items[d.id]) delete cart.items[d.id]; save(); render(); return; }
+  if(d.ppl){ cart.people=Math.max(1,Math.min(30,cart.people+(d.ppl==="+"?1:-1))); save(); render(); return; }
+  if(d.cq){ cart.items[d.id]=Math.max(0,(cart.items[d.id]||0)+(d.cq==="+"?1:-1)); if(!cart.items[d.id]) delete cart.items[d.id]; save(); render(); review(); return; }
+  if(d.close!==undefined){ closeModal(); return; }
+});
+$("#overlay").addEventListener("click",e=>{ if(e.target.id==="overlay") closeModal(); });
+$("#bar").onclick=()=>review();
+
+function review(){
+  const L=lines();
+  if(!L.length){ closeModal(); return; }
+  modal(`<h3>確認點餐</h3>
+    <div class="muted" style="font-size:16px">桌號 ${esc(G.label)}${G.open?"":` · ${cart.people} 位`}</div>
+    <div>${L.map(l=>`<div class="line"><span>${esc(l.name)}</span>${stepper("cq",l.id,l.q)}<span class="num">${fmt(l.price*l.q)}</span></div>`).join("")}</div>
+    <div class="row total"><span>這次合計</span><span class="num">${fmt(sum(L))} 元</span></div>
+    <textarea id="note" maxlength="120" placeholder="備註(選填),例如:鶏皮烤脆一點">${esc(cart.note)}</textarea>
+    <div class="btns"><button class="btn" data-close>繼續點</button><button class="btn primary" id="send">送出點餐</button></div>`);
+  $("#note").oninput=e=>{ cart.note=e.target.value; save(); };
+  $("#send").onclick=send;
+}
+
+async function send(){
+  if(sending) return; sending=true; $("#send").disabled=true; $("#send").textContent="送出中…";
+  const L=lines();
+  try{
+    const r=await fetch("api/guest-order",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({t:TID,people:cart.people,note:cart.note,lines:L.map(l=>({id:l.id,q:l.q}))})});
+    const res=await r.json();
+    if(!r.ok) throw new Error(res.error||"送出失敗");
+    G=res; cart={items:{},note:"",people:cart.people}; save(); render();
+    const o=G.orders[G.orders.length-1];
+    modal(`<div class="big-ok">✓</div><h3 style="text-align:center">已送出第 ${o?o.round:""} 輪</h3>
+      <p class="muted" style="text-align:center;margin:0">廚房已經收到,餐點做好會送到桌上。<br>想加點隨時可以再點。</p>
+      <button class="btn primary" data-close>好</button>`);
+  }catch(err){
+    $("#send").disabled=false; $("#send").textContent="送出點餐";
+    toast(err.message==="Failed to fetch"?"連不上店內系統,請確認手機連的是店內 Wi-Fi":err.message);
+  }finally{ sending=false; }
+}
+
+async function refresh(){
+  try{ const r=await fetch("api/guest?t="+encodeURIComponent(TID),{cache:"no-store"});
+    if(r.status===404){ $("#main").innerHTML=`<div class="empty">找不到這個桌號,請洽店員。</div>`; $("#tblName").textContent="桌號錯誤"; return false; }
+    G=await r.json(); if($("#overlay").hidden) render(); return true;
+  }catch(e){ return null; }
+}
+
+(async()=>{
+  if(!TID){ $("#main").innerHTML=`<div class="empty">請掃描桌上的 QR code 點餐。</div>`; $("#tblName").textContent=""; return; }
+  try{
+    const m=await (await fetch("api/menu",{cache:"no-store"})).json();
+    CATS=m.cats; CATS.forEach(c=>c.items.forEach(it=>ITEM[it.id]=it));
+  }catch(e){ $("#main").innerHTML=`<div class="empty">連不上店內系統。<br>請確認手機連的是店內 Wi-Fi,再重新掃一次 QR code。</div>`; $("#tblName").textContent=""; return; }
+  const ok=await refresh();
+  if(ok) setInterval(refresh,8000);   // 看已點的單做到哪;不會重畫正在確認的視窗
+})();
+</script>
+</body>
+</html>
