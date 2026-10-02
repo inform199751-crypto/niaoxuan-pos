@@ -44,6 +44,9 @@ section h2 small{font-family:var(--sans);font-size:13px;color:var(--muted);lette
 .item{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:10px;padding:12px 0;border-bottom:1px dashed var(--line)}
 .item .nm{font-family:var(--serif);font-size:22px;line-height:1.3}
 .item .jp{font-size:14px;color:var(--muted)}
+.hot{display:inline-flex;align-items:center;gap:1px;margin-left:6px;vertical-align:2px}
+.hot .crown{width:24px;height:18px}
+.hot .hotn{font-family:var(--mono);font-size:13px;color:#9A6A00;font-weight:600}
 .item .pr{font-family:var(--mono);font-size:19px;color:var(--tare);text-align:right}
 .item .ctl{width:124px;display:flex;justify-content:flex-end}
 .item.has{background:linear-gradient(90deg,var(--tare-soft),transparent 85%)}
@@ -100,7 +103,9 @@ const KEY="nx-guest-cart-"+TID;
 function lsGet(k,f){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):f; }catch(e){ return f; } }
 function lsSet(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
 
-let CATS=[], ITEM={}, G=null, cart=lsGet(KEY,{items:{},note:"",people:1}), sending=false;
+const CROWN_SVG='<svg class="crown" viewBox="0 0 24 18" aria-hidden="true"><path d="M2 15 1 4l6 5 5-8 5 8 6-5-1 11z" fill="#E8B10C" stroke="#9A6A00" stroke-width="1.2" stroke-linejoin="round"/><rect x="2" y="15" width="20" height="2.4" rx="1" fill="#C98F00"/></svg>';
+const crownTag=r=>`<span class="hot" title="近 30 天熱賣第 ${r} 名">${CROWN_SVG}<span class="hotn">${r}</span></span>`;
+let HOT=[], CATS=[], ITEM={}, G=null, cart=lsGet(KEY,{items:{},note:"",people:1}), sending=false;
 
 function toast(m){ const el=$("#toast"); el.textContent=m; el.hidden=false; clearTimeout(toast.t); toast.t=setTimeout(()=>el.hidden=true,2600); }
 function modal(h){ $("#sheet").innerHTML=h; $("#overlay").hidden=false; }
@@ -124,7 +129,7 @@ function render(){
   $("#main").innerHTML=
     (G.open?"":`<div class="card people"><span>用餐人數</span>${stepper("ppl","p",cart.people,1)}</div>`)+
     CATS.map(c=>`<section id="c-${c.id}"><h2>${esc(c.name)}<small>${esc(c.en)}</small></h2>${c.items.map(it=>{ const q=cart.items[it.id]||0;
-      return `<div class="item ${q?"has":""}"><div><div class="nm">${esc(it.name)}</div><div class="jp">${esc(it.jp)}</div></div><div class="pr">${it.price}</div>
+      return `<div class="item ${q?"has":""}"><div><div class="nm">${esc(it.name)}${HOT.includes(it.name)?crownTag(HOT.indexOf(it.name)+1):""}</div><div class="jp">${esc(it.jp)}</div></div><div class="pr">${it.price}</div>
         <div class="ctl">${q?stepper("q",it.id,q):`<button class="add" data-q="+" data-id="${it.id}">加入</button>`}</div></div>`; }).join("")}</section>`).join("")+
     (G.orders.length?`<section id="mine"><h2>已點的餐點<small>ORDERED</small></h2><div class="card">${G.orders.map(o=>`
       <div class="round"><span>第 ${o.round} 輪 · ${hhmm(o.at)}</span><span class="pill ${o.status==="pending"?"cook":"done"}">${o.status==="pending"?"製作中":"已出餐"}</span></div>
@@ -191,7 +196,7 @@ async function refresh(){
   if(!TID){ $("#main").innerHTML=`<div class="empty">請掃描桌上的 QR code 點餐。</div>`; $("#tblName").textContent=""; return; }
   try{
     const m=await (await fetch("api/menu",{cache:"no-store"})).json();
-    CATS=m.cats; CATS.forEach(c=>c.items.forEach(it=>ITEM[it.id]=it));
+    CATS=m.cats; HOT=m.hot||[]; CATS.forEach(c=>c.items.forEach(it=>ITEM[it.id]=it));
   }catch(e){ $("#main").innerHTML=`<div class="empty">連不上店內系統。<br>請確認手機連的是店內 Wi-Fi,再重新掃一次 QR code。</div>`; $("#tblName").textContent=""; return; }
   const ok=await refresh();
   if(ok) setInterval(refresh,8000);   // 看已點的單做到哪;不會重畫正在確認的視窗

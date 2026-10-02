@@ -189,6 +189,13 @@ td.r,th.r{text-align:right}
 tr:last-child td{border-bottom:0}
 h2.sec{font-family:var(--serif);font-size:18px;margin:0 0 8px}
 .bar{height:8px;border-radius:4px;background:var(--tare);display:block;min-width:2px}
+.hot{display:inline-flex;align-items:center;gap:1px;margin-left:6px;vertical-align:2px}
+.hot .crown{width:20px;height:15px}
+.hot .hotn{font-family:var(--mono);font-size:11px;color:#9A6A00;font-weight:600}
+.podium{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:6px}
+.podium div{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:grid;gap:2px}
+.podium .crown{width:30px;height:22px}
+.podium b{font-family:var(--serif);font-size:20px;font-weight:600}
 details.hist{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 14px;margin-bottom:8px}
 details.hist summary{cursor:pointer;display:flex;justify-content:space-between;gap:10px}
 
@@ -2715,7 +2722,7 @@ function vOrder(){
   const menu=`<nav class="cats">${MENU.map(m=>`<a href="#${m.id}">${m.name}</a>`).join("")}<a href="#hidden">隱藏菜單</a></nav>`+MENU.map(m=>`
     <section class="cat" id="${m.id}"><h2>${m.name}<small>${m.en}</small></h2><ul class="items">${m.items.map(([id])=>{
       const it=ITEM[id], q=c.items[id]||0, out=so.has(id);
-      return `<li class="item ${q?"has":""} ${out?"out":""}"><div><div class="nm">${it.name}</div><div class="jp">${it.jp}</div></div>
+      return `<li class="item ${q?"has":""} ${out?"out":""}"><div><div class="nm">${it.name}${hotRank(it.name)?crownTag(hotRank(it.name)):""}</div><div class="jp">${it.jp}</div></div>
         <div class="pr">${it.price}</div><div class="ctl">${out?"":(q?stepper("qty",id,q):`<button class="add" data-qty="+" data-id="${id}">加入</button>`)}</div></li>`;}).join("")}</ul></section>`).join("")+`
     <section class="cat" id="hidden"><h2>隱藏菜單<small>自己輸入品名和價格</small></h2>
       <div class="chips" style="margin-top:10px">
@@ -2838,6 +2845,16 @@ function vClose(){
 
 /* ---- 記帳 ---- */
 /* 品項賣出統計:份數佔比看「哪道最常被點」,金額佔比看「哪道最會賺」,兩個不一定一樣 */
+const CROWN_SVG='<svg class="crown" viewBox="0 0 24 18" aria-hidden="true"><path d="M2 15 1 4l6 5 5-8 5 8 6-5-1 11z" fill="#E8B10C" stroke="#9A6A00" stroke-width="1.2" stroke-linejoin="round"/><rect x="2" y="15" width="20" height="2.4" rx="1" fill="#C98F00"/></svg>';
+const crownTag=r=>`<span class="hot" title="近 30 天熱賣第 ${r} 名">${CROWN_SVG}<span class="hotn">${r}</span></span>`;
+function hotTop3(){
+  const since=bizDay(new Date(Date.now()-29*864e5)), menuNames=new Set(Object.values(ITEM).map(i=>i.name)), q={};
+  S.days.filter(d=>d.id>=since).forEach(d=>(d.items||[]).forEach(([n,v])=>{ if(menuNames.has(n)) q[n]=(q[n]||0)+v; }));
+  S.settles.forEach(x=>x.lines.forEach(l=>{ if(menuNames.has(l.name)) q[l.name]=(q[l.name]||0)+l.q; }));
+  return Object.entries(q).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]).slice(0,3);
+}
+const hotRank=name=>{ const i=hotTop3().findIndex(([n])=>n===name); return i<0?0:i+1; };
+
 function itemShare(qty, amt){
   const names=Object.keys(qty), tq=names.reduce((a,n)=>a+qty[n],0)||1, ta=names.reduce((a,n)=>a+(amt[n]||0),0)||1;
   return names.map(n=>({name:n, q:qty[n], a:amt[n]||0, qp:qty[n]/tq*100, ap:(amt[n]||0)/ta*100})).sort((x,y)=>y.q-x.q||y.a-x.a);
@@ -2882,6 +2899,9 @@ function vBooks(){
       ${cats.map(([c,a])=>`<tr><td>${esc(c)}</td><td class="r num">${fmt(a)}</td><td><i class="bar" style="width:${a/topC*100}%"></i></td></tr>`).join("")||`<tr><td colspan="3" class="muted">—</td></tr>`}</table></div></div>
     <div><h2 class="sec">每日收支</h2><div class="tblwrap"><table><tr><th>日期</th><th class="r">營業額</th><th class="r">支出</th><th class="r">結餘</th></tr>
       ${days.map(d=>{ const n=(d.revenue||0)-(d.expenseTotal||0); return `<tr><td>${d.id.slice(5)}</td><td class="r num">${fmt(d.revenue||0)}</td><td class="r num">${fmt(d.expenseTotal||0)}</td><td class="r num" style="color:${n<0?"var(--bad)":"inherit"}">${fmt(n)}</td></tr>`; }).join("")||`<tr><td colspan="4" class="muted">本月還沒有關帳紀錄</td></tr>`}</table></div></div></div>
+    <h2 class="sec" style="margin-top:24px">熱賣前三名<small class="muted" style="font-family:var(--sans);font-size:12px;font-weight:400;margin-left:8px">近 30 天,依賣出份數</small></h2>
+    ${(()=>{ const t=hotTop3(); return t.length?`<div class="podium">${t.map(([n,v],i)=>`<div><span>${CROWN_SVG}<span class="muted" style="font-size:13px;margin-left:6px">第 ${i+1} 名</span></span><b>${esc(n)}</b><span class="muted" style="font-size:13px">${v} 份</span></div>`).join("")}</div>
+      <p class="muted" style="font-size:12px;margin:0">這三道在點餐畫面和客人點餐頁的品名旁邊會出現黃冠。</p>`:`<p class="muted">近 30 天還沒有賣出紀錄。</p>`; })()}
     <h2 class="sec" style="margin-top:24px">${month} 品項賣出佔比</h2>
     ${(()=>{ const q={}, a={};
       days.forEach(d=>{ (d.items||[]).forEach(([n,v])=>q[n]=(q[n]||0)+v); (d.itemAmt||[]).forEach(([n,v])=>a[n]=(a[n]||0)+v); });

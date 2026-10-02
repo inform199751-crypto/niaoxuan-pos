@@ -159,6 +159,22 @@ def label(tid):
     return "+".join([base_label(tid)] + [base_label(m) for m in merged])
 
 
+def hot_top3():
+    """近 30 天(已關帳日報 + 還沒關帳的結帳)賣出份數前三名,只算菜單上的品項。跟店員端同一套算法。"""
+    since = (datetime.now() - timedelta(hours=DAY_CUTOFF_HOUR) - timedelta(days=29)).strftime("%Y-%m-%d")
+    names, q = {it["name"] for it in ITEMS.values()}, {}
+    for day_id, d in state["data"]["days"].items():
+        if day_id >= since:
+            for n, v in d.get("items") or []:
+                if n in names:
+                    q[n] = q.get(n, 0) + v
+    for s in state["data"]["settles"].values():
+        for l in s.get("lines") or []:
+            if l.get("name") in names:
+                q[l["name"]] = q.get(l["name"], 0) + l.get("q", 0)
+    return [n for n, v in sorted(q.items(), key=lambda x: -x[1]) if v > 0][:3]
+
+
 def guest_view(tid):
     main = main_table(tid)
     t = state["data"]["tables"].get(main) or {}
@@ -262,7 +278,8 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/order":
             return self._page("guest.html")
         if path == "/api/menu":
-            return self._send(200, {"cats": MENU, "tables": table_list()})
+            with lock:
+                return self._send(200, {"cats": MENU, "tables": table_list(), "hot": hot_top3()})
         if path == "/api/guest":
             with lock:
                 tid = (qs.get("t") or [""])[0]
