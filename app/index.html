@@ -2804,8 +2804,8 @@ function vClose(){
   const older=[...new Set(list.map(s=>s.day).filter(d=>d!==day))];
   const rev=list.reduce((s,x)=>s+x.due,0), cov=list.reduce((s,x)=>s+x.people,0);
   const bym=Object.fromEntries(METHODS.map(([k,l])=>[k,{l,n:0,a:0}])); list.forEach(s=>{ const m=bym[s.method]; if(m){m.n++;m.a+=s.due;} });
-  const items={}; list.forEach(s=>s.lines.forEach(l=>{ items[l.name]=(items[l.name]||0)+l.q; }));
-  const rank=Object.entries(items).sort((a,b)=>b[1]-a[1]), top=rank[0]?.[1]||1;
+  const items={}, itemAmt={}; list.forEach(s=>s.lines.forEach(l=>{ items[l.name]=(items[l.name]||0)+l.q; itemAmt[l.name]=(itemAmt[l.name]||0)+l.price*l.q; }));
+  const share=itemShare(items,itemAmt);
   const open=tableList().filter(t=>T(t.id)).length, sh=S.shift, out=drawerOut();
   const shiftPanel="";   // 店家不用零用金,不開帳
   let h=shiftPanel+`<h2 class="sec">營業日 ${day}${list.length?` · 未關帳 ${list.length} 筆`:""}</h2>
@@ -2820,8 +2820,8 @@ function vClose(){
     <h2 class="sec" style="margin-top:18px">結帳紀錄</h2><div class="tblwrap"><table><tr><th>時間</th><th>桌</th><th class="r">人數</th><th>方式</th><th class="r">金額</th><th></th></tr>
       ${list.map(s=>`<tr><td class="num">${hhmm(s.at)}</td><td>${esc(s.tableLabel)}</td><td class="r num">${s.people}</td><td>${bym[s.method]?.l||s.method}</td><td class="r num">${fmt(s.due)}</td><td><button class="x" data-reprint="${s.id}">補印</button></td></tr>`).join("")||`<tr><td colspan="6" class="muted">還沒有結帳</td></tr>`}</table></div>
   </div><div>
-    <h2 class="sec">品項銷量</h2><div class="tblwrap"><table><tr><th>品項</th><th class="r">份數</th><th style="width:40%"></th></tr>
-      ${rank.map(([n,q])=>`<tr><td>${n}</td><td class="r num">${q}</td><td><i class="bar" style="width:${q/top*100}%"></i></td></tr>`).join("")||`<tr><td colspan="3" class="muted">—</td></tr>`}</table></div>
+    <h2 class="sec">品項銷量</h2>${shareTable(share,"還沒有結帳")}
+    <p class="muted" style="font-size:12px;margin:6px 0 0">份數佔比 = 這道賣出的份數 ÷ 全部份數;金額佔比 = 這道的金額 ÷ 全部餐點金額(不含開瓶費)。</p>
   </div></div>
   <div class="panel" style="margin-top:20px;padding:16px;display:flex;flex-wrap:wrap;gap:12px;align-items:center">
     <div style="flex:1;min-width:220px"><b>點鈔・關帳</b><div class="muted" style="font-size:13px">點完這班收到的現金(不含抽屜原本放的零錢)輸入金額,系統比對應收現金,再把這班的結帳和支出封存成日報。${open?`<br><span style="color:var(--bad)">還有 ${open} 桌沒結帳,結完才能關帳。</span>`:""}</div></div>
@@ -2832,11 +2832,24 @@ function vClose(){
     ${(d.shifts||[]).map(x=>`<div style="font-size:13px;margin-top:6px">現金核對 ${hhmm(x.closedAt)}:${x.float?`零用金 ${fmt(x.float)} + `:""}現金收款 ${fmt(x.cashSales)}${x.drawerOut?` − 抽屜支出 ${fmt(x.drawerOut)}`:""} = 應有 ${fmt(x.expected)},實點 ${fmt(x.counted)},
       <b style="color:${x.diff?"var(--bad)":"var(--ok)"}">${x.diff?(x.diff>0?"多 ":"短少 ")+fmt(Math.abs(x.diff)):"相符"}</b>${x.note?` · ${esc(x.note)}`:""}</div>`).join("")}
     ${(d.expenses||[]).length?`<div style="font-size:13px;margin-top:6px">支出:${d.expenses.map(e=>`${esc(e.cat)} ${fmt(e.amount)}${e.note?`(${esc(e.note)})`:""}`).join("、")}</div>`:""}
-    <div style="font-size:13px;margin-top:6px">${(d.items||[]).slice(0,10).map(([n,q])=>`${esc(n)} ${q}`).join("、")}</div></details>`).join("");
+    <div style="font-size:13px;margin-top:6px">${(()=>{ const tq=(d.items||[]).reduce((a,[,q])=>a+q,0)||1; return (d.items||[]).slice(0,10).map(([n,q])=>`${esc(n)} ${q} 份(${pct(q/tq*100)})`).join("、"); })()}</div></details>`).join("");
   return h;
 }
 
 /* ---- 記帳 ---- */
+/* 品項賣出統計:份數佔比看「哪道最常被點」,金額佔比看「哪道最會賺」,兩個不一定一樣 */
+function itemShare(qty, amt){
+  const names=Object.keys(qty), tq=names.reduce((a,n)=>a+qty[n],0)||1, ta=names.reduce((a,n)=>a+(amt[n]||0),0)||1;
+  return names.map(n=>({name:n, q:qty[n], a:amt[n]||0, qp:qty[n]/tq*100, ap:(amt[n]||0)/ta*100})).sort((x,y)=>y.q-x.q||y.a-x.a);
+}
+const pct=v=>(v>=10?Math.round(v):Math.round(v*10)/10)+"%";
+function shareTable(rows, emptyText){
+  const top=rows[0]?.qp||1;
+  return `<div class="tblwrap"><table><tr><th>品項</th><th class="r">份數</th><th class="r">份數佔比</th><th class="r">金額</th><th class="r">金額佔比</th></tr>
+    ${rows.map(r=>`<tr><td>${esc(r.name)}<i class="bar" style="width:${r.qp/top*100}%;margin-top:4px;height:4px"></i></td><td class="r num">${r.q}</td><td class="r num">${pct(r.qp)}</td><td class="r num">${r.a?fmt(r.a):"招待"}</td><td class="r num">${pct(r.ap)}</td></tr>`).join("")
+      ||`<tr><td colspan="5" class="muted">${emptyText}</td></tr>`}</table></div>`;
+}
+
 function vBooks(){
   const E=S.expenses.slice().sort((a,b)=>a.at<b.at?1:-1), tot=E.reduce((a,e)=>a+e.amount,0);
   const month=bizDay().slice(0,7), days=S.days.filter(d=>d.id.startsWith(month)).sort((a,b)=>a.id<b.id?-1:1);
@@ -2869,6 +2882,12 @@ function vBooks(){
       ${cats.map(([c,a])=>`<tr><td>${esc(c)}</td><td class="r num">${fmt(a)}</td><td><i class="bar" style="width:${a/topC*100}%"></i></td></tr>`).join("")||`<tr><td colspan="3" class="muted">—</td></tr>`}</table></div></div>
     <div><h2 class="sec">每日收支</h2><div class="tblwrap"><table><tr><th>日期</th><th class="r">營業額</th><th class="r">支出</th><th class="r">結餘</th></tr>
       ${days.map(d=>{ const n=(d.revenue||0)-(d.expenseTotal||0); return `<tr><td>${d.id.slice(5)}</td><td class="r num">${fmt(d.revenue||0)}</td><td class="r num">${fmt(d.expenseTotal||0)}</td><td class="r num" style="color:${n<0?"var(--bad)":"inherit"}">${fmt(n)}</td></tr>`; }).join("")||`<tr><td colspan="4" class="muted">本月還沒有關帳紀錄</td></tr>`}</table></div></div></div>
+    <h2 class="sec" style="margin-top:24px">${month} 品項賣出佔比</h2>
+    ${(()=>{ const q={}, a={};
+      days.forEach(d=>{ (d.items||[]).forEach(([n,v])=>q[n]=(q[n]||0)+v); (d.itemAmt||[]).forEach(([n,v])=>a[n]=(a[n]||0)+v); });
+      S.settles.forEach(x=>x.lines.forEach(l=>{ q[l.name]=(q[l.name]||0)+l.q; a[l.name]=(a[l.name]||0)+l.price*l.q; }));
+      const old=days.some(d=>(d.items||[]).length&&!d.itemAmt);
+      return shareTable(itemShare(q,a),"本月還沒有賣出紀錄")+(old?`<p class="muted" style="font-size:12px;margin:6px 0 0">較早關帳的日報沒有存品項金額,那幾天只算進份數佔比。</p>`:""); })()}
     <p class="muted" style="font-size:12px">收支結餘是營業額減掉記下來的支出,不是報稅用的損益;沒記的支出(例如月底才付的帳單)不會算進來。</p>`;
 }
 
@@ -3128,10 +3147,10 @@ document.addEventListener("click",async e=>{
         await safe(async()=>{
           for(const [day,{S:L,E:X}] of Object.entries(groups)){
             const prev=S.days.find(x=>x.id===day)||{};
-            const items=Object.fromEntries(prev.items||[]), byMethod={...(prev.byMethod||{})};
-            L.forEach(x=>{ byMethod[x.method]=(byMethod[x.method]||0)+x.due; x.lines.forEach(l=>items[l.name]=(items[l.name]||0)+l.q); });
+            const items=Object.fromEntries(prev.items||[]), itemAmt=Object.fromEntries(prev.itemAmt||[]), byMethod={...(prev.byMethod||{})};
+            L.forEach(x=>{ byMethod[x.method]=(byMethod[x.method]||0)+x.due; x.lines.forEach(l=>{ items[l.name]=(items[l.name]||0)+l.q; itemAmt[l.name]=(itemAmt[l.name]||0)+l.price*l.q; }); });
             await store.put("days",day,{revenue:(prev.revenue||0)+L.reduce((a,x)=>a+x.due,0),covers:(prev.covers||0)+L.reduce((a,x)=>a+x.people,0),
-              count:(prev.count||0)+L.length,byMethod,items:Object.entries(items).sort((a,b)=>b[1]-a[1]),closedAt:now,
+              count:(prev.count||0)+L.length,byMethod,items:Object.entries(items).sort((a,b)=>b[1]-a[1]),itemAmt:Object.entries(itemAmt),closedAt:now,
               expenseTotal:(prev.expenseTotal||0)+X.reduce((a,e)=>a+e.amount,0),
               expenses:[...(prev.expenses||[]),...X.map(({cat,amount,note,src,at})=>({cat,amount,note,src,at}))],
               shifts:[...(prev.shifts||[]),...(day===shiftDay?[shiftRec]:[])],
